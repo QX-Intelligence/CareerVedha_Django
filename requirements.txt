@@ -1,0 +1,31 @@
+# Django Framework
+Django==4.2.15
+djangorestframework==3.14.0
+
+# Database
+psycopg2-binary==2.9.10
+django-db-connection-pool[postgresql]
+
+# JWT Authentication
+PyJWT
+cryptography
+
+# Redis & Caching
+redis
+django-redis
+
+# Environment Variables
+python-dotenv==1.0.1
+
+# Production Server
+gunicorn==22.0.0
+whitenoise==6.8.2
+
+# Utilities
+pytz==2024.1
+requests==2.32.3
+
+# CORS
+django-cors-headers
+django-filter
+boto3
