@@ -48,9 +48,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             aws ecr get-login-password --region ap-south-2 \
-            | docker login --username AWS --password-stdin $ECR_REGISTRY
+            | docker login --username AWS --password-stdin 264426277863.dkr.ecr.ap-south-2.amazonaws.com
 
             cd /home/ec2-user/django
-
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
-            docker-compose up -d
+            docker-compose down --remove-orphans
+            docker-compose up -d --force-recreate --pull-always
