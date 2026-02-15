@@ -52,4 +52,4 @@ jobs:
 
             cd /home/ec2-user/django
             docker-compose down --remove-orphans
-            docker-compose up -d --force-recreate --pull-always
+            docker-compose up -d --force-recreate --pull always
