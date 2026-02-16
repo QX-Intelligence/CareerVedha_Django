@@ -12,13 +12,12 @@ from .models import Article, ArticleFeature
 from .pagination import ArticleFeatureCursorPagination
 from .cache import bump_articles_cache_version
 
-ALLOWED_FEATURES = ["HERO", "TOP", "BREAKING", "EDITOR_PICK", "MUST_READ"]
+ALLOWED_FEATURES = ["HERO", "TOP", "BREAKING", "EDITOR_PICK"]
 FEATURE_LIMITS = {
     "HERO": 5,
     "TOP": 10,
     "BREAKING": 1,
     "EDITOR_PICK": 10,
-    "MUST_READ": 10,
 }
 
 class GetFeatures(APIView):
@@ -28,10 +27,11 @@ class GetFeatures(APIView):
     """
 
     def get(self, request):
-        user = get_user_from_jwt(request)
-        require_min_role(user, "EDITOR")
+        #user = get_user_from_jwt(request)
+        #require_min_role(user, "EDITOR")
         feature_type = (request.GET.get("feature_type") or "").strip().upper()
         section = (request.GET.get("section") or "").strip()
+        lang = (request.GET.get("lang") or "").strip().lower()
 
         if feature_type not in ALLOWED_FEATURES:
             raise ValidationError({"feature_type": f"Invalid. Allowed: {ALLOWED_FEATURES}"})
@@ -46,9 +46,14 @@ class GetFeatures(APIView):
         if section:
             from django.db.models import Q
             qs = qs.filter(Q(section=section) | Q(section="") | Q(section__isnull=True))
+            # Strict filter: only show articles belonging to this section & global pins that match
+            qs = qs.filter(article__section__iexact=section)
         
+        if lang: 
+            qs = qs.filter(article__translations__language=lang)
+
         # Filter to only PUBLISHED articles and order
-        qs = qs.filter(article__status="PUBLISHED").select_related("article").prefetch_related("article__translations").order_by("rank", "-id")
+        qs = qs.filter(article__status="PUBLISHED").select_related("article").prefetch_related("article__translations").order_by("rank", "-id").distinct()
 
         paginator = ArticleFeatureCursorPagination()
         page = paginator.paginate_queryset(qs, request)
@@ -57,15 +62,22 @@ class GetFeatures(APIView):
         if page is not None:
             for f in page:
                 article = f.article
-                # Get title from translations
+                
+                # Get title based on requested language or default
                 article_title = "Untitled"
-                if article.translations.exists():
-                    article_title = article.translations.first().title or "Untitled"
+                if lang:
+                    trans = next((t for t in article.translations.all() if t.language == lang), None)
+                    if trans:
+                        article_title = trans.title
+                else:
+                    # Fallback to prioritized title (English -> Telugu -> First)
+                    article_title = article.prioritized_title or "Untitled"
                 
                 features.append({
                     "feature_id": f.id,
                     "article_id": article.id,
                     "article_slug": article.slug,
+                    "article_section": article.section,  # Added article source section  
                     "article_title": article_title,
                     "article_status": article.status,
                     "section": f.section or "",
