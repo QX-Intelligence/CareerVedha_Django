@@ -257,12 +257,9 @@ LOGGING = {
 # -------------------------------------------------
 # SPRING BOOT NOTIFICATION SERVICE
 # -------------------------------------------------
-SPRING_BOOT_NOTIFICATION_URL = os.getenv(
-    "SPRING_BOOT_NOTIFICATION_URL",
-    "http://localhost:8080/api/send-post-notification"
-)
-SPRING_BOOT_AUTH_HEADER = os.getenv("SPRING_BOOT_AUTH_HEADER", "Authorization")
-NOTIFICATION_TIMEOUT = int(os.getenv("NOTIFICATION_TIMEOUT", "5"))
+SPRING_BOOT_NOTIFICATION_URL = os.getenv("SPRING_BOOT_NOTIFICATION_URL")
+SPRING_BOOT_AUTH_HEADER = os.getenv("SPRING_BOOT_AUTH_HEADER")
+NOTIFICATION_TIMEOUT = int(os.getenv("NOTIFICATION_TIMEOUT"))
 
 # -------------------------------------------------
 # AWS S3 (FOR MEDIA STORAGE)

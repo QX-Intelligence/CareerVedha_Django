@@ -13,14 +13,10 @@ class SpringBootNotificationService:
     """
 
     def __init__(self):
-        self.spring_boot_url = getattr(
-            settings,
-            'SPRING_BOOT_NOTIFICATION_URL',
-            'http://localhost:8080/api/send-post-notification'
-        )
-        self.timeout = getattr(settings, 'NOTIFICATION_TIMEOUT', 5)
-        self.auth_token = getattr(settings, 'SPRING_BOOT_AUTH_TOKEN', None)
-        self.auth_header = getattr(settings, 'SPRING_BOOT_AUTH_HEADER', 'Authorization')
+        self.spring_boot_url = getattr(settings, 'SPRING_BOOT_NOTIFICATION_URL')
+        self.timeout = getattr(settings, 'NOTIFICATION_TIMEOUT')
+        self.auth_token = getattr(settings, 'SPRING_BOOT_AUTH_TOKEN')
+        self.auth_header = getattr(settings, 'SPRING_BOOT_AUTH_HEADER')
 
     def _get_headers(self, token: Optional[str] = None) -> dict:
         """
