@@ -69,6 +69,7 @@ SITE_ID = 1
 # -------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # ✅ Required for static files in production
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -137,6 +138,9 @@ USE_TZ = False
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# ✅ WhiteNoise Storage (Compression + Caching)
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 # -------------------------------------------------
 # MEDIA (NOT USED IN SERVICE-1)
 # -------------------------------------------------
@@ -192,10 +196,7 @@ if _base64_key:
 else:
     JWT_PUBLIC_KEY = None
 
-# -------------------------------------------------
-# ✅ REDIS CACHE CONFIG (MANDATORY FOR JOBS INFINITE LOAD)
-# -------------------------------------------------
-REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1")
+REDIS_URL = os.getenv("REDIS_URL")
 
 CACHES = {
     "default": {
@@ -208,7 +209,6 @@ CACHES = {
     }
 }
 
-# ✅ Store Django sessions in Redis (optional but good)
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
