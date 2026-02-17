@@ -7,7 +7,7 @@ class Category(models.Model):
         help_text="academics | exams | news | more | campus-pages"
     )
 
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100) 
     slug = models.SlugField()
 
     parent = models.ForeignKey(
