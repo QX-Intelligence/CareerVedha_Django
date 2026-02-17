@@ -15,6 +15,7 @@ def get_articles_cache_version() -> int:
         return 1
 
 
+
 def bump_articles_cache_version() -> None:
     try:
         cache.incr(ARTICLES_CACHE_VER_KEY)
