@@ -216,7 +216,7 @@ SESSION_CACHE_ALIAS = "default"
 # SECURITY HARDENING
 # -------------------------------------------------
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-USE_X_FORWARDED_HOST = False
+USE_X_FORWARDED_HOST = True
 
 X_FRAME_OPTIONS = "DENY"
 CSRF_COOKIE_HTTPONLY = True
