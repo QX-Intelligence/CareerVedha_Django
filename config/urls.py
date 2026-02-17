@@ -42,7 +42,7 @@ urlpatterns = [
     # Public API - No authentication required
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/taxonomy/<section>/
+    # GET /api/django/taxonomy/<section>/
     # ───────────────────────────────────────────────────────────────────────────
     # Root-level categories for a section (pagination friendly)
     # Parameters: section (str, required) - e.g., "academics", "business", "tech"
@@ -76,7 +76,7 @@ urlpatterns = [
     # Implementation: TaxonomyBySection.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/taxonomy/<section>/tree/
+    # GET /api/django/taxonomy/<section>/tree/
     # ───────────────────────────────────────────────────────────────────────────
     # Complete hierarchical tree with all nested children (RECURSIVE)
     # Parameters: section (str, required)
@@ -119,7 +119,7 @@ urlpatterns = [
     # Implementation: TaxonomyTree.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/taxonomy/<section>/children/?parent_id=<id>
+    # GET /api/django/taxonomy/<section>/children/?parent_id=<id>
     # ───────────────────────────────────────────────────────────────────────────
     # Get direct children of a category (using parent ID - BEST METHOD)
     # Parameters: section (str), parent_id (int, query parameter)
@@ -154,7 +154,7 @@ urlpatterns = [
     # Implementation: CategoryChildrenById.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/taxonomy/<section>/<slug>/children/
+    # GET /api/django/taxonomy/<section>/<slug>/children/
     # ───────────────────────────────────────────────────────────────────────────
     # Get direct children by parent slug (ROOT CATEGORIES ONLY - LIMITED)
     # Parameters: section (str), slug (str - parent slug)
@@ -190,15 +190,15 @@ urlpatterns = [
     # ───────────────────────────────────────────────────────────────────────────
     # CMS CATEGORY MANAGEMENT ENDPOINTS
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/taxonomy/categories/ - AdminCategoryList
-    # POST /api/taxonomy/categories/create/ - CreateCategory
-    # PATCH /api/taxonomy/categories/<id>/ - UpdateCategory
-    # DELETE /api/taxonomy/categories/<id>/delete/ - DeleteCategory
+    # GET /api/django/taxonomy/categories/ - AdminCategoryList
+    # POST /api/django/taxonomy/categories/create/ - CreateCategory
+    # PATCH /api/django/taxonomy/categories/<id>/ - UpdateCategory
+    # DELETE /api/django/taxonomy/categories/<id>/delete/ - DeleteCategory
     # Auth: JWT required | Role: ADMIN
     #
     # ───────────────────────────────────────────────────────────────────────────
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/taxonomy/categories/<category_id>/disable/
+    # PATCH /api/django/cms/taxonomy/categories/<category_id>/disable/
     # ───────────────────────────────────────────────────────────────────────────
     # Disable category (set is_active=False)
     # Auth: JWT required | Role: EDITOR+
@@ -206,15 +206,15 @@ urlpatterns = [
     # Implementation: DisableCategory.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/taxonomy/categories/<category_id>/enable/
+    # PATCH /api/django/cms/taxonomy/categories/<category_id>/enable/
     # ───────────────────────────────────────────────────────────────────────────
     # Enable category (set is_active=True)
     # Auth: JWT required | Role: EDITOR+
     # Response 200 OK: { "status": "enabled" }
     # Implementation: EnableCategory.patch()
-    #
-    path("api/taxonomy/", include("apps.taxonomy.urls")),
-    path("api/cms/taxonomy/", include("apps.taxonomy.urls")),
+    #9
+    path("api/django/taxonomy/", include("apps.taxonomy.urls")),
+    path("api/django/cms/taxonomy/", include("apps.taxonomy.urls")),
     
     # ╔═══════════════════════════════════════════════════════════════════════════╗
     # ║ 2. ARTICLES API - Content Management System                              ║
@@ -226,7 +226,7 @@ urlpatterns = [
     # ═══════════════════════════════════════════════════════════════════════════
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/
+    # POST /api/django/cms/articles/
     # ───────────────────────────────────────────────────────────────────────────
     # Create new article (DRAFT status)
     # Auth: JWT required | Role: CONTRIBUTOR+
@@ -284,7 +284,7 @@ urlpatterns = [
     # Implementation: CreateArticle.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/<article_id>/translation/
+    # POST /api/django/cms/articles/<article_id>/translation/
     # ───────────────────────────────────────────────────────────────────────────
     # Add/update translation + creates revision
     # Auth: JWT required | Role: EDITOR+
@@ -302,7 +302,7 @@ urlpatterns = [
     # Implementation: AddOrUpdateTranslation.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/<article_id>/media/
+    # POST /api/django/cms/articles/<article_id>/media/
     # ───────────────────────────────────────────────────────────────────────────
     # Attach media to article (Cross-service reference)
     # Auth: JWT required | Role: EDITOR+
@@ -319,7 +319,7 @@ urlpatterns = [
     # Implementation: AttachMediaToArticle.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/<article_id>/categories/
+    # POST /api/django/cms/articles/<article_id>/categories/
     # ───────────────────────────────────────────────────────────────────────────
     # Assign categories to article
     # Auth: JWT required | Role: EDITOR+
@@ -332,7 +332,7 @@ urlpatterns = [
     # Implementation: AssignCategories.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/review/
+    # PATCH /api/django/cms/articles/<article_id>/review/
     # ───────────────────────────────────────────────────────────────────────────
     # Move article DRAFT → REVIEW (validates Telugu translation + categories)
     # Auth: JWT required | Role: EDITOR+
@@ -346,7 +346,7 @@ urlpatterns = [
     # Implementation: MoveToReview.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/publish/
+    # PATCH /api/django/cms/articles/<article_id>/publish/
     # ───────────────────────────────────────────────────────────────────────────
     # Move article REVIEW → PUBLISHED (sets noindex=False, published_at=now)
     # Auth: JWT required | Role: PUBLISHER+
@@ -360,7 +360,7 @@ urlpatterns = [
     # Implementation: PublishArticle.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/deactivate/
+    # PATCH /api/django/cms/articles/<article_id>/deactivate/
     # ───────────────────────────────────────────────────────────────────────────
     # Deactivate article (status=INACTIVE, noindex=True)
     # Auth: JWT required | Role: PUBLISHER+
@@ -369,7 +369,7 @@ urlpatterns = [
     # Implementation: DeactivateArticle.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/activate/
+    # PATCH /api/django/cms/articles/<article_id>/activate/
     # ───────────────────────────────────────────────────────────────────────────
     # Activate inactive article (status=DRAFT, noindex=True)
     # Allows re-review of previously deactivated articles
@@ -379,7 +379,7 @@ urlpatterns = [
     # Implementation: ActivateArticle.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/admin/list/
+    # GET /api/django/cms/articles/admin/list/
     # ───────────────────────────────────────────────────────────────────────────
     # Admin list all articles (paginated)
     # Auth: JWT required | Role: EDITOR+
@@ -390,7 +390,7 @@ urlpatterns = [
     # Implementation: AdminArticleList.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/<article_id>/revisions/
+    # GET /api/django/cms/articles/<article_id>/revisions/
     # ───────────────────────────────────────────────────────────────────────────
     # Get revision history of article
     # Auth: JWT required | Role: EDITOR+
@@ -404,7 +404,7 @@ urlpatterns = [
     # ═════════════════════════════════════════════════════════════════════════════
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/features/?feature_type=TOP&section=academics&limit=50
+    # GET /api/django/cms/articles/features/?feature_type=TOP&section=academics&limit=50
     # ───────────────────────────────────────────────────────────────────────────
     # Get list of all pinned/featured articles (CMS MANAGEMENT)
     # Auth: JWT required | Role: PUBLISHER+ (SUPER_ADMIN, ADMIN, EDITOR, PUBLISHER)
@@ -449,7 +449,7 @@ urlpatterns = [
     # Implementation: GetFeatures.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/<id>/feature/
+    # POST /api/django/cms/articles/<id>/feature/
     # ───────────────────────────────────────────────────────────────────────────
     # Pin article as featured (Top/Hero/Breaking/Editor Pick)
     # Auth: JWT required | Role: PUBLISHER+ (SUPER_ADMIN, ADMIN, EDITOR, PUBLISHER)
@@ -474,7 +474,7 @@ urlpatterns = [
     # Implementation: PinFeature.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # DELETE /api/cms/articles/<id>/feature/remove/?feature_type=TOP&section=academics
+    # DELETE /api/django/cms/articles/<id>/feature/remove/?feature_type=TOP&section=academics
     # ───────────────────────────────────────────────────────────────────────────
     # Unpin featured article
     # Auth: JWT required | Role: PUBLISHER+
@@ -484,7 +484,7 @@ urlpatterns = [
     # Implementation: UnpinFeature.delete()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/features/?feature_type=TOP&section=academics
+    # GET /api/django/cms/articles/features/?feature_type=TOP&section=academics
     # ───────────────────────────────────────────────────────────────────────────
     # Get list of pinned/featured articles - CODE NOT YET IMPLEMENTED
     # Auth: JWT required | Role: PUBLISHER+
@@ -512,10 +512,10 @@ urlpatterns = [
     # ═══════════════════════════════════════════════════════════════════════════
     # PUBLIC ENDPOINTS (No Authentication Required)
     # ═══════════════════════════════════════════════════════════════════════════
-    # NOTE: These endpoints are under /api/cms/articles/ prefix but serve public content
+    # NOTE: These endpoints are under /api/django/cms/articles/ prefix but serve public content
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/<section>/<slug>/?lang=te
+    # GET /api/django/cms/articles/<section>/<slug>/?lang=te
     # ───────────────────────────────────────────────────────────────────────────
     # Get single published article (DETAIL PAGE)
     # Parameters: section (str), slug (str), lang (str, query, default: "te")
@@ -553,7 +553,7 @@ urlpatterns = [
     # Implementation: PublicArticle.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/home/?lang=te&limit=10
+    # GET /api/django/cms/articles/home/?lang=te&limit=10
     # ───────────────────────────────────────────────────────────────────────────
     # Home feed - featured + trending + latest articles
     # No authentication required
@@ -586,7 +586,7 @@ urlpatterns = [
     # Implementation: HomeFeed.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/section/<section>/?lang=te&limit=20
+    # GET /api/django/cms/articles/section/<section>/?lang=te&limit=20
     # ───────────────────────────────────────────────────────────────────────────
     # Section feed - articles from specific section
     # Parameters: section (str, required)
@@ -600,7 +600,7 @@ urlpatterns = [
     # Implementation: SectionFeed.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/trending/?section=academics&limit=20&lang=te
+    # GET /api/django/cms/articles/trending/?section=academics&limit=20&lang=te
     # ───────────────────────────────────────────────────────────────────────────
     # Trending articles (by views, most recent first)
     # Query: ?section=academics&limit=20&lang=te
@@ -623,7 +623,7 @@ urlpatterns = [
     # Implementation: TrendingArticles.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/search-suggestions/?q=django&lang=te&section=academics
+    # GET /api/django/cms/articles/search-suggestions/?q=django&lang=te&section=academics
     # ───────────────────────────────────────────────────────────────────────────
     # Article search suggestions (published only, searches title & summary)
     # Query: ?q=search_term&lang=te&section=academics (optional)
@@ -640,7 +640,7 @@ urlpatterns = [
     # Implementation: ArticleSearchSuggestions.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/filters/?section=academics
+    # GET /api/django/cms/articles/filters/?section=academics
     # ───────────────────────────────────────────────────────────────────────────
     # Get available filter options + article count per category
     # Query: ?section=academics (optional)
@@ -658,7 +658,7 @@ urlpatterns = [
     # Implementation: ArticleFilters.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/category-block/?section=academics&lang=te&limit=6
+    # GET /api/django/cms/articles/category-block/?section=academics&lang=te&limit=6
     # ───────────────────────────────────────────────────────────────────────────
     # Articles grouped by root categories for display blocks
     # Parameters: section (str, required)
@@ -689,7 +689,7 @@ urlpatterns = [
     # Implementation: CategoryBlockArticles.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/<section>/<slug>/track-view/
+    # POST /api/django/cms/articles/<section>/<slug>/track-view/
     # ───────────────────────────────────────────────────────────────────────────
     # Track article view - increments views_count + records view event
     # Parameters: section (str), slug (str)
@@ -700,7 +700,7 @@ urlpatterns = [
     # Implementation: TrackArticleView.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/list/?section=academics&limit=20&cursor=ABC
+    # GET /api/django/cms/articles/list/?section=academics&limit=20&cursor=ABC
     # ───────────────────────────────────────────────────────────────────────────
     # All articles with cursor-based pagination (PUBLIC)
     # Query: ?section=academics&limit=20&cursor=ABC
@@ -732,7 +732,7 @@ urlpatterns = [
     # All CMS endpoints require JWT auth. Role required: CONTRIBUTOR+ < EDITOR+ < PUBLISHER+ < ADMIN+ < SUPER_ADMIN
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/
+    # POST /api/django/cms/articles/
     # ───────────────────────────────────────────────────────────────────────────
     # Create new article in DRAFT status (CONTRIBUTOR+)
     # Supports 2 input methods: direct language fields OR nested translations array
@@ -754,7 +754,7 @@ urlpatterns = [
     # Implementation: CreateArticle.post() [apps/articles/views_cms.py]
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/<article_id>/translation/
+    # POST /api/django/cms/articles/<article_id>/translation/
     # ───────────────────────────────────────────────────────────────────────────
     # Add or update article translation + create revision history (EDITOR+)
     #
@@ -774,7 +774,7 @@ urlpatterns = [
     # Implementation: AddOrUpdateTranslation.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/review/
+    # PATCH /api/django/cms/articles/<article_id>/review/
     # ───────────────────────────────────────────────────────────────────────────
     # Move DRAFT → REVIEW. Validates: Telugu translation exists, ≥1 category (CONTRIBUTOR+)
     # Response 200 OK: { "status": "review" }
@@ -782,28 +782,28 @@ urlpatterns = [
     # Implementation: MoveToReview.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/publish/
+    # PATCH /api/django/cms/articles/<article_id>/publish/
     # ───────────────────────────────────────────────────────────────────────────
     # Move REVIEW → PUBLISHED. Sets published_at, noindex=false (PUBLISHER+)
     # Response 200 OK: { "id": 1, "status": "PUBLISHED", "published_at": "..." }
     # Implementation: PublishArticle.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/deactivate/
+    # PATCH /api/django/cms/articles/<article_id>/deactivate/
     # ───────────────────────────────────────────────────────────────────────────
     # Deactivate article: status=INACTIVE, noindex=true. Sends notification (ADMIN+)
     # Response 200 OK: { "id": 1, "status": "INACTIVE", "noindex": true }
     # Implementation: DeactivateArticle.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/activate/
+    # PATCH /api/django/cms/articles/<article_id>/activate/
     # ───────────────────────────────────────────────────────────────────────────
     # Reactivate INACTIVE article back to DRAFT (ADMIN+)
     # Response 200 OK: { "id": 1, "status": "DRAFT" }
     # Implementation: ActivateArticle.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/reject/
+    # PATCH /api/django/cms/articles/<article_id>/reject/
     # ───────────────────────────────────────────────────────────────────────────
     # Reject article REVIEW → DRAFT with reason. Notifies CONTRIBUTOR (EDITOR+)
     # Request: { "reason": "Content quality issue" }
@@ -811,7 +811,7 @@ urlpatterns = [
     # Implementation: ArticleReject.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/articles/<article_id>/
+    # PATCH /api/django/cms/articles/<article_id>/
     # ───────────────────────────────────────────────────────────────────────────
     # Update article metadata (summary, tags, keywords, SEO fields, etc.)
     # Auth: JWT required | Role: EDITOR+
@@ -851,7 +851,7 @@ urlpatterns = [
     # Implementation: ArticleDelete.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # DELETE /api/cms/articles/<article_id>/
+    # DELETE /api/django/cms/articles/<article_id>/
     # ───────────────────────────────────────────────────────────────────────────
     # Delete single article with audit trail. Sends notification
     # Auth: JWT required | Role: ADMIN+ (SUPER_ADMIN, ADMIN)
@@ -860,7 +860,7 @@ urlpatterns = [
     # Implementation: ArticleDelete.delete()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # DELETE /api/cms/articles/delete-multi/
+    # DELETE /api/django/cms/articles/delete-multi/
     # ───────────────────────────────────────────────────────────────────────────
     # Bulk delete multiple articles (ADMIN+)
     # Request: { "article_ids": [1, 2, 3] }
@@ -868,7 +868,7 @@ urlpatterns = [
     # Implementation: ArticleDeleteMulti.delete()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/articles/search/?q=django&section=tech
+    # GET /api/django/cms/articles/search/?q=django&section=tech
     # ───────────────────────────────────────────────────────────────────────────
     # Search articles by ID (numeric) or title (EDITOR+)
     # Query: ?q=1 (by ID) | ?q=django (by title) | &section=tech | &status=DRAFT,PUBLISHED
@@ -876,7 +876,7 @@ urlpatterns = [
     # Implementation: ArticleSearch.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/articles/<article_id>/feature/ (PIN)
+    # POST /api/django/cms/articles/<article_id>/feature/ (PIN)
     # ───────────────────────────────────────────────────────────────────────────
     # Pin article as featured. Feature limits: HERO(5), TOP(10), BREAKING(1), EDITOR_PICK(20) (PUBLISHER+)
     # Request: { "feature_type": "TOP", "rank": 1, "section": "academics" }
@@ -884,13 +884,13 @@ urlpatterns = [
     # Implementation: PinFeature.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # DELETE /api/cms/articles/<article_id>/feature/?feature_type=TOP&section=academics
+    # DELETE /api/django/cms/articles/<article_id>/feature/?feature_type=TOP&section=academics
     # ───────────────────────────────────────────────────────────────────────────
     # Unpin featured article. REQUIRED: ?feature_type=TOP&section=academics (PUBLISHER+)
     # Response 200 OK: { "status": "unfeatured", "deleted": 1 }
     # Implementation: UnpinFeature.delete()
     #
-    path("api/cms/articles/", include("apps.articles.urls")),
+    path("api/django/cms/articles/", include("apps.articles.urls")),
     
     # ╔═══════════════════════════════════════════════════════════════════════════╗
     # ║ 3. JOBS API - Job Posting Management & Public Listings                   ║
@@ -902,7 +902,7 @@ urlpatterns = [
     # ═════════════════════════════════════════════════════════════════════════════
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # POST /api/cms/jobs/
+    # POST /api/django/cms/jobs/
     # ───────────────────────────────────────────────────────────────────────────
     # Create and immediately publish job (status=1) - direct publish (PUBLISHER+)
     # Request Body (Required: title, slug, job_type, application_end_date, job_description):
@@ -911,7 +911,7 @@ urlpatterns = [
     # Implementation: CreateJob.post()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/jobs/list/
+    # GET /api/django/cms/jobs/list/
     # ───────────────────────────────────────────────────────────────────────────
     # List all jobs for publisher with filters and cursor pagination (PUBLISHER+)
     # Query: ?status=1&job_type=GOVT&search=developer&limit=20&cursor=ABC
@@ -920,14 +920,14 @@ urlpatterns = [
     # Implementation: ListPublisherJobs.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/cms/jobs/<job_id>/detail/
+    # GET /api/django/cms/jobs/<job_id>/detail/
     # ───────────────────────────────────────────────────────────────────────────
     # Get specific job details for CMS (PUBLISHER+)
     # Response 200 OK: Complete job object with all fields
     # Implementation: GetPublisherJob.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/jobs/<job_id>/
+    # PATCH /api/django/cms/jobs/<job_id>/
     # ───────────────────────────────────────────────────────────────────────────
     # Update job details (title, description, salary, location, etc.) (PUBLISHER+)
     # Request Body (All fields optional - only update what you send):
@@ -936,21 +936,21 @@ urlpatterns = [
     # Implementation: UpdateJob.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/jobs/<job_id>/publish/ ⚠️ NOT MAPPED IN URLS
+    # PATCH /api/django/cms/jobs/<job_id>/publish/ ⚠️ NOT MAPPED IN URLS
     # ───────────────────────────────────────────────────────────────────────────
     # Publish job - set status=1 (PUBLISHER+)
     # Response 200 OK: { "status": "PUBLISHED" }
     # Implementation: PublishJob.patch() [EXISTS IN CODE BUT NOT MAPPED]
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/jobs/<job_id>/activate/
+    # PATCH /api/django/cms/jobs/<job_id>/activate/
     # ───────────────────────────────────────────────────────────────────────────
     # Activate job - set status=1 (PUBLISHER+)
     # Response 200 OK: { "status": "ACTIVE" }
     # Implementation: ActivateJob.patch()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # PATCH /api/cms/jobs/<job_id>/deactivate/
+    # PATCH /api/django/cms/jobs/<job_id>/deactivate/
     # ───────────────────────────────────────────────────────────────────────────
     # Deactivate job - set status=0 (PUBLISHER+)
     # Response 200 OK: { "status": "INACTIVE" }
@@ -961,7 +961,7 @@ urlpatterns = [
     # ═════════════════════════════════════════════════════════════════════════════
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/jobs/
+    # GET /api/django/jobs/
     # ───────────────────────────────────────────────────────────────────────────
     # List all active jobs with pagination. Filters: is_active=True, application_end_date >= today
     # Query: ?limit=20&offset=0
@@ -969,28 +969,28 @@ urlpatterns = [
     # Implementation: PublicJobList.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/jobs/filters/
+    # GET /api/django/jobs/filters/
     # ───────────────────────────────────────────────────────────────────────────
     # Get available filter options for job listing
     # Response 200 OK: {job_types: [...], organizations: [...], locations: [...], salary_ranges: [...]}
     # Implementation: PublicJobFilters.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/jobs/trending/?limit=10
+    # GET /api/django/jobs/trending/?limit=10
     # ───────────────────────────────────────────────────────────────────────────
     # Trending jobs (most viewed)
     # Response 200 OK: [ { job_card }, { job_card }, ... ]
     # Implementation: TrendingJobs.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/jobs/search-suggestions/?q=developer
+    # GET /api/django/jobs/search-suggestions/?q=developer
     # ───────────────────────────────────────────────────────────────────────────
     # Job title/skill autocomplete
     # Response 200 OK: [ "Senior Developer", "Developer Tools", ... ]
     # Implementation: JobSearchSuggestions.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/jobs/<slug>/
+    # GET /api/django/jobs/<slug>/
     # ───────────────────────────────────────────────────────────────────────────
     # Get single job detail (DETAIL PAGE). Tracks view event + increments view counter
     # Response 200 OK: Complete job object with id, title, slug, job_type, organization, location, salary, job_description, views_count, created_at, etc.
@@ -999,7 +999,7 @@ urlpatterns = [
     # Implementation: PublicJobDetailAPI.get()
     #
     # ───────────────────────────────────────────────────────────────────────────
-    # GET /api/jobs/<slug>/seo/
+    # GET /api/django/jobs/<slug>/seo/
     # ───────────────────────────────────────────────────────────────────────────
     # Get job SEO metadata + JSON-LD schema for search engine optimization
     # Response 200 OK: { "canonical": "...", "title": "...", "description": "...", "robots": "index,follow", "schema": {...} }
@@ -1010,7 +1010,7 @@ urlpatterns = [
     # ───────────────────────────────────────────────────────────────────────────
     # GET /jobs/<slug>/ (LEGACY - for direct website access)
     # ───────────────────────────────────────────────────────────────────────────
-    # Alternative public job detail endpoint (same as /api/jobs/<slug>/)
+    # Alternative public job detail endpoint (same as /api/django/jobs/<slug>/)
     # Implementation: PublicJobDetail.get()
     #
     path("", include("apps.jobs.urls")),
@@ -1054,7 +1054,7 @@ urlpatterns = [
     # SITEMAP (1): XML feed for SEO crawlers
     #
     # ⚠️  UNMAPPED ENDPOINTS (1 - Exists in code but not in urls.py):
-    # JOBS: PublishJob (PATCH /api/cms/jobs/<job_id>/publish/)
+    # JOBS: PublishJob (PATCH /api/django/cms/jobs/<job_id>/publish/)
     # DATABASE SCHEMA (As of 2026-01-24):
     # • public.articles_article: id, slug, section, status, summary, tags, keywords, canonical_url, meta_title, meta_description, noindex, og_title, og_description, og_image_url, expires_at, views_count, published_at, created_at, updated_at, created_by, updated_by
     # • public.articles_articletranslation: id, article_id, language, title, content
@@ -1063,15 +1063,15 @@ urlpatterns = [
     # • public.jobs_jobviewevent: id, job_id, ip, user_agent, created_at
     #
     # ARTICLE URL PATHS NOTE:
-    # • All article endpoints are included under /api/cms/articles/ prefix
+    # • All article endpoints are included under /api/django/cms/articles/ prefix
     # • Public endpoints (no auth) mixed with CMS endpoints (auth required)
     # • URLs use relative paths in apps/articles/urls.py
     # • Examples:
-    #   - POST /api/cms/articles/ [CMS - Create article]
-    #   - GET /api/cms/articles/home/ [PUBLIC - Home feed]
-    #   - GET /api/cms/articles/trending/ [PUBLIC - Trending articles]
-    #   - GET /api/cms/articles/<section>/<slug>/ [PUBLIC - Article detail]
-    #   - GET /api/cms/articles/list/ [PUBLIC - Cursor pagination, UNMAPPED]
+    #   - POST /api/django/cms/articles/ [CMS - Create article]
+    #   - GET /api/django/cms/articles/home/ [PUBLIC - Home feed]
+    #   - GET /api/django/cms/articles/trending/ [PUBLIC - Trending articles]
+    #   - GET /api/django/cms/articles/<section>/<slug>/ [PUBLIC - Article detail]
+    #   - GET /api/django/cms/articles/list/ [PUBLIC - Cursor pagination, UNMAPPED]
     #
     # ═══════════════════════════════════════════════════════════════════════════
     # DETAILED BREAKDOWN
@@ -1130,8 +1130,8 @@ urlpatterns = [
     # }
     #
     # AUTHENTICATION:
-    # • All /api/cms/* endpoints require JWT authorization header
-    # • All /api/* and / public endpoints are open (no auth)
+    # • All /api/django/cms/* endpoints require JWT authorization header
+    # • All /api/django/* and / public endpoints are open (no auth)
     # • Format: Authorization: Bearer <jwt_token>
     # • JWT contains: user_id, username, role, email
     #
@@ -1193,6 +1193,6 @@ urlpatterns = [
     #
     #
     path("sitemap.xml", sitemap, {"sitemaps": {"articles": ArticleSitemap, "jobs": JobsSitemap}}),
-    path("api/academics/", include("apps.academics.urls")),
-    path("api/media/", include("apps.media.urls")),
+    path("api/django/academics/", include("apps.academics.urls")),
+    path("api/django/media/", include("apps.media.urls")),
 ]
