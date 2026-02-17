@@ -239,3 +239,4 @@ class EnableCategory(APIView):
         cat.is_active = True
         cat.save(update_fields=["is_active"])
         return Response({"status": "enabled"}, status=200)
+ 
