@@ -192,6 +192,7 @@ class SpringBootNotificationService:
         article_id: int,
         article_title: str,
         contributor_id: str,
+        receiver_role: Optional[str] = None,
         spring_boot_token: Optional[str] = None
     ) -> bool:
         """
@@ -201,6 +202,7 @@ class SpringBootNotificationService:
             article_id: ID of the article
             article_title: Title of the article (or slug if no title)
             contributor_id: ID of the contributor who created the article
+            receiver_role: Optional override for the target role
             spring_boot_token: Optional Bearer token for Spring Boot notification
 
         Returns:
@@ -209,7 +211,7 @@ class SpringBootNotificationService:
         message = f"New article '{article_title}' created by {contributor_id}"
         return self.send_notification(
             article_id=article_id,
-            receiver_role='EDITOR',
+            receiver_role=receiver_role or 'EDITOR',
             message=message,
             spring_boot_token=spring_boot_token
         )

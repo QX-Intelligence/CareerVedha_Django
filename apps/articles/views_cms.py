@@ -103,7 +103,7 @@ class CreateArticle(APIView):
                 requested_status = request.data.get("status")
                 scheduled_at_str = request.data.get("scheduled_at")
                 
-                if (requested_status == "PUBLISHED" or scheduled_at_str) and get_role_level(user["role"]) >= get_role_level("ADMIN"):
+                if (requested_status == "PUBLISHED" or scheduled_at_str) and get_role_level(user["role"]) >= get_role_level("PUBLISHER"):
                     if not article.translations.exists():
                         # If no translations exist, we can't publish
                         # Transaction will roll back the article creation
@@ -146,6 +146,7 @@ class CreateArticle(APIView):
                         article_id=article.id,
                         article_title=article.slug,
                         contributor_id=article.created_by,
+                        receiver_role=get_target_receiver_role(user["role"]),
                         spring_boot_token=_get_spring_boot_token(request)
                     )
                 
