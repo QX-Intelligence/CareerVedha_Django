@@ -257,7 +257,7 @@ LOGGING = {
 # -------------------------------------------------
 # SPRING BOOT NOTIFICATION SERVICE
 # -------------------------------------------------
-SPRING_BOOT_NOTIFICATION_URL = os.getenv("SPRING_BOOT_NOTIFICATION_URL")
+SPRING_BOOT_NOTIFICATION_URL = "https://api.quinzexintelligence.com/api/spring/send-post-notification"
 SPRING_BOOT_AUTH_HEADER = os.getenv("SPRING_BOOT_AUTH_HEADER")
 SPRING_BOOT_AUTH_TOKEN = os.getenv("SPRING_BOOT_AUTH_TOKEN")
 NOTIFICATION_TIMEOUT = int(os.getenv("NOTIFICATION_TIMEOUT"))
