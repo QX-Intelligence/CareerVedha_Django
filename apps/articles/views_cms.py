@@ -8,7 +8,7 @@ from rest_framework import status
 
 from .pagination import ArticleCursorPagination, ArticleRevisionCursorPagination, ArticleSearchPagination
 from apps.common.jwt import get_user_from_jwt
-from apps.common.permissions import require_min_role, get_role_level
+from apps.common.permissions import require_min_role, get_role_level, _normalize_role
 from .notification_service import notification_service
 
 from .models import (
@@ -22,7 +22,14 @@ from .cache import bump_articles_cache_version
 
 
 def get_target_receiver_role(actor_role):
-    """Hierarchical mapping of actor role to next-level required receiver role."""
+    """
+    Hierarchical mapping of actor role to next-level required receiver role.
+    - Contributor -> Editor
+    - Editor -> Publisher
+    - Publisher -> Admin (Admins & Super Admins)
+    - Admin -> Super Admin (Only Super Admins)
+    """
+    role = _normalize_role(actor_role)
     mapping = {
         "CONTRIBUTOR": "EDITOR",
         "EDITOR": "PUBLISHER",
@@ -30,8 +37,8 @@ def get_target_receiver_role(actor_role):
         "ADMIN": "SUPER_ADMIN",
         "SUPER_ADMIN": "SUPER_ADMIN"
     }
-    # Basic normalization if needed, match with common.permissions
-    role = actor_role.replace("ROLE_", "").strip().upper() if actor_role else ""
+    # Default to EDITOR if role is unknown or contributor, 
+    # but for ADMIN it MUST be SUPER_ADMIN
     return mapping.get(role, "EDITOR")
 
 
