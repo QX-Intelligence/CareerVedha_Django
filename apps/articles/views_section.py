@@ -159,13 +159,14 @@ class SectionFeed(APIView):
         top_ids = [i for i in top_ids if i not in used and not used.add(i)]
         must_read_ids = [i for i in must_read_ids if i not in used and not used.add(i)]
 
+        from django.db.models import Q
         # Fetch latest articles for this section
         qs = Article.objects.filter(
-            section=section, 
+            Q(section=section) | Q(article_sections__section=section),
             status="PUBLISHED", 
             noindex=False, 
             published_at__lte=now()
-        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').order_by("-id")
+        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct().order_by("-id")
         
         qs = _exclude_expired(qs)
 

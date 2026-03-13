@@ -39,7 +39,7 @@ class CategoryBlockArticles(APIView):
         today = now()
 
         root_categories = Category.objects.filter(
-            section=section,
+            section__slug=section,
             parent__isnull=True,
             is_active=True
         ).order_by("name")

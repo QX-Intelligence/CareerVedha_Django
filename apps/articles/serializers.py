@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Article, ArticleTranslation, ArticleCategory, ArticleMedia
+from .models import Article, ArticleTranslation, ArticleCategory, ArticleMedia, ArticleSection, TopStory
 from apps.media.models import MediaAsset
 from apps.media.utils import upload_media_file, detect_media_type
 from apps.media.s3 import get_s3_client
@@ -75,6 +75,13 @@ class ArticleSerializer(serializers.ModelSerializer):
     )
     categories = ArticleCategoryDetailSerializer(source='article_categories', many=True, read_only=True)
     
+    additional_sections = serializers.ListField(
+        child=serializers.CharField(),
+        write_only=True,
+        required=False
+    )
+    sections = serializers.SerializerMethodField(read_only=True)
+    
     # Direct English fields
     eng_title = serializers.CharField(write_only=True, required=False, allow_blank=True)
     eng_content = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -102,7 +109,7 @@ class ArticleSerializer(serializers.ModelSerializer):
             "tags",
             "keywords",
 
-            "canonical_url",
+            "youtube_url",
             "meta_title",
             "meta_description",
             "noindex",
@@ -134,10 +141,13 @@ class ArticleSerializer(serializers.ModelSerializer):
             "tel_title",
             "tel_content",
             "tel_summary",
+            "is_top_story",
             "banner_file",
             "banner_media_id",
             "main_file",
             "main_media_id",
+            "additional_sections",
+            "sections",
         )
         read_only_fields = (
             "id",
@@ -149,10 +159,18 @@ class ArticleSerializer(serializers.ModelSerializer):
             "last_viewed_at",
             "created_at",
             "updated_at",
+            "sections",
         )
 
     def get_title(self, obj):
         return obj.title
+
+    def get_sections(self, obj):
+        # Return list including primary and secondary sections
+        secs = [obj.section]
+        if hasattr(obj, 'article_sections'):
+            secs.extend(obj.article_sections.values_list('section', flat=True).distinct())
+        return list(set(filter(None, secs)))
 
     def validate_translations(self, value):
         langs = [t.get("language") for t in value]
@@ -160,33 +178,70 @@ class ArticleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Duplicate translation language found")
         return value
 
-    def create(self, validated_data):
-        translations_data = validated_data.pop("translations", [])
-        category_ids = validated_data.pop("category_ids", [])
+    def validate(self, data):
+        # Ensure at least one language is provided
+        has_eng = data.get("eng_title") or data.get("eng_content")
+        has_tel = data.get("tel_title") or data.get("tel_content")
+        has_nest = bool(data.get("translations"))
         
-        # Extract direct language fields
-        eng_title = validated_data.pop("eng_title", "").strip()
-        eng_content = validated_data.pop("eng_content", "").strip()
-        eng_summary = validated_data.pop("eng_summary", "").strip()
-        tel_title = validated_data.pop("tel_title", "").strip()
-        tel_content = validated_data.pop("tel_content", "").strip()
-        tel_summary = validated_data.pop("tel_summary", "").strip()
+        if not (has_eng or has_tel or has_nest):
+            raise serializers.ValidationError("At least one language translation (Telugu or English) must be provided.")
+            
+        return data
 
-        # Pop media fields BEFORE article creation
-        banner_file = validated_data.pop("banner_file", None)
-        banner_media_id = validated_data.pop("banner_media_id", None)
-        main_file = validated_data.pop("main_file", None)
-        main_media_id = validated_data.pop("main_media_id", None)
-
-        article = Article.objects.create(**validated_data)
-
-        # Create translations from nested data
-        for tr in translations_data:
+    def _sync_translations(self, article, data):
+        """Helper to sync nested and direct language fields."""
+        # 1. Nested translations
+        translations_list = data.pop("translations", [])
+        for tr in translations_list:
             lang = tr.pop("language", None)
             if lang:
                 ArticleTranslation.objects.update_or_create(
                     article=article, language=lang, defaults=tr
                 )
+        
+        # 2. Direct English fields
+        eng_title = data.pop("eng_title", "").strip()
+        eng_content = data.pop("eng_content", "").strip()
+        eng_summary = data.pop("eng_summary", "").strip()
+        if eng_title or eng_content or eng_summary:
+            ArticleTranslation.objects.update_or_create(
+                article=article, language="en",
+                defaults={"title": eng_title, "content": eng_content, "summary": eng_summary}
+            )
+            
+        # 3. Direct Telugu fields
+        tel_title = data.pop("tel_title", "").strip()
+        tel_content = data.pop("tel_content", "").strip()
+        tel_summary = data.pop("tel_summary", "").strip()
+        if tel_title or tel_content or tel_summary:
+            ArticleTranslation.objects.update_or_create(
+                article=article, language="te",
+                defaults={"title": tel_title, "content": tel_content, "summary": tel_summary}
+            )
+
+    def create(self, validated_data):
+        # Extract fields handled in _sync_translations and other special fields
+        category_ids = validated_data.pop("category_ids", [])
+        additional_sections = validated_data.pop("additional_sections", [])
+        banner_file = validated_data.pop("banner_file", None)
+        banner_media_id = validated_data.pop("banner_media_id", None)
+        main_file = validated_data.pop("main_file", None)
+        main_media_id = validated_data.pop("main_media_id", None)
+
+        # Separate language data for helper
+        lang_data = {
+            "translations": validated_data.pop("translations", []),
+            "eng_title": validated_data.pop("eng_title", ""),
+            "eng_content": validated_data.pop("eng_content", ""),
+            "eng_summary": validated_data.pop("eng_summary", ""),
+            "tel_title": validated_data.pop("tel_title", ""),
+            "tel_content": validated_data.pop("tel_content", ""),
+            "tel_summary": validated_data.pop("tel_summary", ""),
+        }
+
+        article = Article.objects.create(**validated_data)
+        self._sync_translations(article, lang_data)
         
         # 🖼️ Handle Banner File (Direct Upload)
         if banner_file:
@@ -230,81 +285,41 @@ class ArticleSerializer(serializers.ModelSerializer):
                 )
             except MediaAsset.DoesNotExist: pass
 
-        # Create English translation if provided
-        if eng_title and (eng_content or eng_summary):
-            ArticleTranslation.objects.update_or_create(
-                article=article,
-                language="en",
-                defaults={
-                    "title": eng_title,
-                    "content": eng_content,
-                    "summary": eng_summary
-                }
-            )
-        
-        # Create Telugu translation if provided
-        if tel_title and (tel_content or tel_summary):
-            ArticleTranslation.objects.update_or_create(
-                article=article,
-                language="te",
-                defaults={
-                    "title": tel_title,
-                    "content": tel_content,
-                    "summary": tel_summary
-                }
-            )
 
         for cid in category_ids:
             ArticleCategory.objects.get_or_create(article=article, category_id=cid)
 
+        for sec in additional_sections:
+            if sec and sec != article.section:
+                ArticleSection.objects.get_or_create(article=article, section=sec)
+
         return article
 
     def update(self, instance, validated_data):
-        translations_data = validated_data.pop("translations", [])
+        # Extract fields for helper and other special fields
         category_ids = validated_data.pop("category_ids", None)
-        
-        # Extract direct language fields
-        eng_title = validated_data.pop("eng_title", "").strip()
-        eng_content = validated_data.pop("eng_content", "").strip()
-        eng_summary = validated_data.pop("eng_summary", "").strip()
-        tel_title = validated_data.pop("tel_title", "").strip()
-        tel_content = validated_data.pop("tel_content", "").strip()
-        tel_summary = validated_data.pop("tel_summary", "").strip()
-
-        # Pop media fields BEFORE update loop
+        additional_sections = validated_data.pop("additional_sections", None)
         banner_file = validated_data.pop("banner_file", None)
         banner_media_id = validated_data.pop("banner_media_id", None)
         main_file = validated_data.pop("main_file", None)
         main_media_id = validated_data.pop("main_media_id", None)
+
+        lang_data = {
+            "translations": validated_data.pop("translations", []),
+            "eng_title": validated_data.pop("eng_title", ""),
+            "eng_content": validated_data.pop("eng_content", ""),
+            "eng_summary": validated_data.pop("eng_summary", ""),
+            "tel_title": validated_data.pop("tel_title", ""),
+            "tel_content": validated_data.pop("tel_content", ""),
+            "tel_summary": validated_data.pop("tel_summary", ""),
+        }
 
         # Update basic fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Update or Create English translation
-        if eng_title:
-            tr, created = ArticleTranslation.objects.get_or_create(
-                article=instance, language="en",
-                defaults={"title": eng_title, "content": eng_content, "summary": eng_summary}
-            )
-            if not created:
-                tr.title = eng_title
-                tr.content = eng_content
-                tr.summary = eng_summary
-                tr.save()
-
-        # Update or Create Telugu translation
-        if tel_title:
-            tr, created = ArticleTranslation.objects.get_or_create(
-                article=instance, language="te",
-                defaults={"title": tel_title, "content": tel_content, "summary": tel_summary}
-            )
-            if not created:
-                tr.title = tel_title
-                tr.content = tel_content
-                tr.summary = tel_summary
-                tr.save()
+        self._sync_translations(instance, lang_data)
 
         # Handle Banner File / Media ID in update
         if banner_file or banner_media_id:
@@ -378,18 +393,13 @@ class ArticleSerializer(serializers.ModelSerializer):
             for cid in category_ids:
                 ArticleCategory.objects.get_or_create(article=instance, category_id=cid)
 
-        # Handle nested translations (if any)
-        for tr_data in translations_data:
-            lang = tr_data.get("language")
-            if lang:
-                tr, created = ArticleTranslation.objects.get_or_create(
-                    article=instance, language=lang,
-                    defaults=tr_data
-                )
-                if not created:
-                    for attr, value in tr_data.items():
-                        setattr(tr, attr, value)
-                    tr.save()
+        # Sync sections if provided
+        if additional_sections is not None:
+            # Filter out primary section if accidentally included
+            additional_sections = [s for s in additional_sections if s and s != instance.section]
+            ArticleSection.objects.filter(article=instance).exclude(section__in=additional_sections).delete()
+            for sec in additional_sections:
+                ArticleSection.objects.get_or_create(article=instance, section=sec)
 
         return instance
 
@@ -411,7 +421,7 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
             "summary",
             "tags",
             "keywords",
-            "canonical_url",
+            "youtube_url",
             "noindex",
             "og_title",
             "og_description",
@@ -488,3 +498,43 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
             result.append(media_data)
 
         return result
+
+from apps.media.utils import upload_media_file, get_media_url
+
+class TopStorySerializer(serializers.ModelSerializer):
+    image_file = serializers.ImageField(write_only=True, required=False)
+    
+    class Meta:
+        model = TopStory
+        fields = [
+            "id", "title", "description", "image_url", "image_file",
+            "category", "publish_date", "expiry_date", "is_top_story",
+            "views", "created_at", "updated_at"
+        ]
+        read_only_fields = ["id", "views", "created_at", "updated_at"]
+
+    def create(self, validated_data):
+        image_file = validated_data.pop("image_file", None)
+        if image_file:
+            asset = upload_media_file(
+                file_obj=image_file,
+                prefix="top-stories",
+                purpose="top-story",
+                user_id=self.context.get("request").user.username if self.context.get("request") else "admin"
+            )
+            validated_data["image_url"] = get_media_url(asset)
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        image_file = validated_data.pop("image_file", None)
+        if image_file:
+            asset = upload_media_file(
+                file_obj=image_file,
+                prefix="top-stories",
+                purpose="top-story",
+                user_id=self.context.get("request").user.username if self.context.get("request") else "admin"
+            )
+            validated_data["image_url"] = get_media_url(asset)
+
+        return super().update(instance, validated_data)

@@ -7,15 +7,30 @@ from apps.media.s3 import get_s3_client
 
 def get_article_translation(article, lang="te"):
     """
-    Returns the translation for the given language, 
-    falls back to Telugu ('te') if not found.
-    Uses prefetched data if available.
+    Returns the translation for the given language with robust fallbacks.
+    1. Requested language
+    2. Telugu ('te')
+    3. English ('en')
+    4. First available
     """
     translations = list(article.translations.all())
+    if not translations:
+        return None
+        
+    # 1. Try requested
     tr = next((t for t in translations if t.language == lang), None)
-    if not tr:
-        tr = next((t for t in translations if t.language == "te"), None)
-    return tr
+    if tr: return tr
+    
+    # 2. Try Telugu
+    tr = next((t for t in translations if t.language == "te"), None)
+    if tr: return tr
+    
+    # 3. Try English
+    tr = next((t for t in translations if t.language == "en"), None)
+    if tr: return tr
+    
+    # 4. Fallback to first
+    return translations[0]
 
 def summary_from_content(html_text, max_len=140):
     """
@@ -48,6 +63,8 @@ def prepare_article_card(article, lang="te"):
         "summary": tr.summary or summary_from_content(tr.content),
         "meta_title": article.meta_title,
         "meta_description": article.meta_description,
+        "is_top_story": article.is_top_story,
+        "youtube_url": article.youtube_url,
         "og_title": article.og_title,
         "og_description": article.og_description,
         "og_image_url": article.og_image_url,

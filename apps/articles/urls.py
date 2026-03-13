@@ -25,16 +25,22 @@ from .views_feature import PinFeature, UnpinFeature, GetFeatures
 from .views_section import HomeFeed, SectionFeed
 from .views_public import PublicArticle
 from .views_list_cursor import PublicArticlesListCursor
-from .views_published import PublishedArticlesList
+from .views_published import PublishedArticlesList, TopStoriesView, RelatedArticlesView
 from .views_trending import TrendingArticles
 from .views_filters import ArticleFilters
 from .views_category_block import CategoryBlockArticles     
 from .views_track import TrackArticleView
 from .views_suggestions import ArticleSearchSuggestions
 from .views_attach import AttachMediaToArticle
-from .views_current_affairs import CurrentAffairsView
+from .views_top_stories import TopStoryAdminViewSet, TopStoryPublicView
 
 urlpatterns = [
+    # ==========================
+    # Dedicated Top Stories CRUD
+    # ==========================
+    path("top-stories-cms/", TopStoryAdminViewSet.as_view({'get': 'list', 'post': 'create'})),
+    path("top-stories-cms/<int:pk>/", TopStoryAdminViewSet.as_view({'get': 'retrieve', 'put': 'update', 'partial_update': 'patch', 'delete': 'destroy'})),
+    path("top-stories/list/", TopStoryPublicView.as_view()),
     # ==========================
     # CMS
     # ==========================
@@ -68,11 +74,13 @@ urlpatterns = [
     path("section/<str:section>/", SectionFeed.as_view()),
     path("list/", PublicArticlesListCursor.as_view()),
     path("published/", PublishedArticlesList.as_view()),
+    path("top-stories/", TopStoriesView.as_view()),
     path("trending/", TrendingArticles.as_view()),
     path("filters/", ArticleFilters.as_view()),
     path("search-suggestions/", ArticleSearchSuggestions.as_view()),
     path("category-block/", CategoryBlockArticles.as_view()),
-    path("current-affairs/", CurrentAffairsView.as_view()),
+    # path("current-affairs/", CurrentAffairsView.as_view()),
     path("<str:section>/<slug:slug>/track-view/", TrackArticleView.as_view()),
+    path("<str:section>/<slug:slug>/related/", RelatedArticlesView.as_view()),
     path("<str:section>/<slug:slug>/", PublicArticle.as_view()),
 ]

@@ -9,12 +9,16 @@ from .views import (
 )
 
 from .views_cms import (
+    AdminCategoryList,
     CreateCategory,
     UpdateCategory,
     DeleteCategory,
-    AdminCategoryList,
     DisableCategory,
     EnableCategory,
+    AdminSectionList,
+    CreateSection,
+    UpdateSection,
+    DeleteSection,
 )
 
 urlpatterns = [
@@ -25,6 +29,11 @@ urlpatterns = [
     path("categories/<int:category_id>/delete/", DeleteCategory.as_view()),
     path("categories/<int:category_id>/disable/", DisableCategory.as_view()),
     path("categories/<int:category_id>/enable/", EnableCategory.as_view()),
+
+    path("sections/", AdminSectionList.as_view()),
+    path("sections/create/", CreateSection.as_view()),
+    path("sections/<int:section_id>/", UpdateSection.as_view()),
+    path("sections/<int:section_id>/delete/", DeleteSection.as_view()),
 
     # Public / Generic paths
     path("sections/", SectionList.as_view()),  # Distinct sections

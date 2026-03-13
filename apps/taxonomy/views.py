@@ -2,23 +2,22 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import Category
-from apps.common.permissions import min_role_permission
-from apps.common.authentication import JWTAuthentication
+from .models import Category, Section
+
 
 
 class TaxonomyBySection(APIView):
     """
     GET /api/taxonomy/<section>/
-    Root-level categories only
+    Root-level categories only (PUBLIC)
     """
 
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [min_role_permission("CONTRIBUTOR")]
+    authentication_classes = []
+    permission_classes = []
 
     def get(self, request, section):
         categories = Category.objects.filter(
-            section=section,
+            section__slug=section,
             parent__isnull=True,
             is_active=True
         ).order_by("name", "id")
@@ -39,15 +38,15 @@ class TaxonomyBySection(APIView):
 class CategoryChildrenBySlug(APIView):
     """
     GET /api/taxonomy/<section>/<slug>/children/
-    ✅ Only works for ROOT category slug (safe but limited)
+     Only works for ROOT category slug (safe but limited)
     """
 
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [min_role_permission("CONTRIBUTOR")]
+    authentication_classes = []
+    permission_classes = []
 
     def get(self, request, section, slug):
         parent = Category.objects.filter(
-            section=section,
+            section__slug=section,
             slug=slug,
             parent__isnull=True,
             is_active=True,
@@ -77,12 +76,12 @@ class CategoryChildrenBySlug(APIView):
 
 class CategoryChildrenById(APIView):
     """
-    ✅ BEST API
+    BEST API - Get children by parent_id (PUBLIC)
     GET /api/taxonomy/<section>/children/?parent_id=12
     """
 
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [min_role_permission("CONTRIBUTOR")]
+    authentication_classes = []
+    permission_classes = []
 
     def get(self, request, section):
         parent_id = request.GET.get("parent_id")
@@ -103,7 +102,7 @@ class CategoryChildrenById(APIView):
 
         parent = Category.objects.filter(
             id=parent_id,
-            section=section,
+            section__slug=section,
             is_active=True
         ).first()
 
@@ -131,12 +130,11 @@ class CategoryChildrenById(APIView):
 
 class TaxonomyTree(APIView):
     """
-    GET /api/taxonomy/<section>/tree/
-    Full tree
+    GET /api/taxonomy/<section>/tree/ - Full recursive tree (PUBLIC)
     """
 
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [min_role_permission("CONTRIBUTOR")]
+    authentication_classes = []
+    permission_classes = []
 
     def get(self, request, section):
         def build(node: Category):
@@ -149,7 +147,7 @@ class TaxonomyTree(APIView):
             }
 
         roots = Category.objects.filter(
-            section=section,
+            section__slug=section,
             parent__isnull=True,
             is_active=True
         ).order_by("name", "id")
@@ -159,20 +157,20 @@ class TaxonomyTree(APIView):
 
 class CategoryList(APIView):
     """
-    GET /api/taxonomy/all/
+    GET /api/taxonomy/all/ - All categories flat list (PUBLIC)
     """
 
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [min_role_permission("CONTRIBUTOR")]
+    authentication_classes = []
+    permission_classes = []
 
     def get(self, request):
-        categories = Category.objects.filter(is_active=True).order_by("section", "name")
+        categories = Category.objects.filter(is_active=True).order_by("section__slug", "name")
         data = [
             {
                 "id": c.id,
                 "name": c.name,
                 "slug": c.slug,
-                "section": c.section,
+                "section": c.section.slug if c.section else None,
                 "parent_id": c.parent_id,
                 "rank": c.rank
             }
@@ -190,7 +188,6 @@ class SectionList(APIView):
     permission_classes = []
 
     def get(self, request):
-        sections = Category.objects.filter(is_active=True).values_list('section', flat=True).distinct().order_by('section')
-        # Return as objects with id (slug) and name (capitalized)
-        data = [{"id": s, "name": s.upper()} for s in sections if s]
+        sections = Section.objects.filter(is_active=True).order_by('rank', 'name')
+        data = [{"id": s.slug, "name": s.name} for s in sections]
         return Response(data, status=status.HTTP_200_OK)

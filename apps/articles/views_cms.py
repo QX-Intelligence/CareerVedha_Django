@@ -255,7 +255,7 @@ class AddOrUpdateTranslation(APIView):
 class AssignCategories(APIView):
     """
     POST /api/cms/articles/<id>/categories/
-    role: EDITOR+
+    role: CONTRIBUTOR+
     body: { "category_ids": [1,2,3] }
     """
     def initial(self, request, *args, **kwargs):

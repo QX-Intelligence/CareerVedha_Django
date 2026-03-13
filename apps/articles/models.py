@@ -22,7 +22,7 @@ class Article(models.Model):
     keywords = models.JSONField(default=list, blank=True)
 
     # SEO
-    canonical_url = models.URLField(blank=True)
+    youtube_url = models.URLField(blank=True, null=True)
     meta_title = models.CharField(max_length=255, blank=True)
     meta_description = models.CharField(max_length=300, blank=True)
     noindex = models.BooleanField(default=False)
@@ -34,6 +34,9 @@ class Article(models.Model):
 
     # Expiry (optional)
     expires_at = models.DateTimeField(null=True, blank=True)
+
+    # Feature flags
+    is_top_story = models.BooleanField(default=False)
 
     # Audit
     created_by = models.CharField(max_length=255, blank=True, default="")
@@ -59,6 +62,7 @@ class Article(models.Model):
             models.Index(fields=["status", "section"]),
             models.Index(fields=["status", "created_at"]),
             models.Index(fields=["expires_at"]),
+            models.Index(fields=["is_top_story"]),
         ]
 
     def __str__(self):
@@ -124,6 +128,22 @@ class ArticleCategory(models.Model):
 
     def __str__(self):
         return f"{self.article_id} -> {self.category_id}"
+
+
+class ArticleSection(models.Model):
+    article = models.ForeignKey(
+        Article, on_delete=models.CASCADE, related_name="article_sections"
+    )
+    section = models.CharField(max_length=50)
+
+    class Meta:
+        unique_together = ("article", "section")
+        indexes = [
+            models.Index(fields=["section", "article"]),
+        ]
+
+    def __str__(self):
+        return f"{self.article_id} -> {self.section}"
 
 
 class ArticleFeature(models.Model):
@@ -240,3 +260,40 @@ class ArticleMedia(models.Model):
 
     def __str__(self):
         return f"{self.article_id} -> media:{self.media.id} ({self.usage})"
+
+
+class TopStory(models.Model):
+    CATEGORY_CHOICES = [
+        ("EXAM", "Exam"),
+        ("RESULTS", "Results"),
+        ("ADMISSIONS", "Admissions"),
+        ("SCHOLARSHIPS", "Scholarships"),
+        ("STUDY_TIPS", "Study Tips"),
+        ("JOB_NOTIFICATION", "Job Notification"),
+        ("HOT_TOPIC", "Hot Topic"),
+    ]
+
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    image_url = models.URLField(max_length=500, blank=True, null=True)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    
+    publish_date = models.DateTimeField(default=now)
+    expiry_date = models.DateTimeField(null=True, blank=True)
+    
+    is_top_story = models.BooleanField(default=True)
+    views = models.PositiveIntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-publish_date", "-id"]
+        verbose_name_plural = "Top Stories"
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_expired(self):
+        return bool(self.expiry_date and self.expiry_date < now())
