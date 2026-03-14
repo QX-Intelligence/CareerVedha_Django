@@ -58,7 +58,8 @@ def prepare_article_card(article, lang="te"):
     card = {
         "id": article.id,
         "slug": article.slug,
-        "section": article.section,
+        # article.section may be a ForeignKey (Section object) or a plain string
+        "section": article.section.slug if hasattr(article.section, 'slug') else str(article.section or ''),
         "title": tr.title,
         "summary": tr.summary or summary_from_content(tr.content),
         "meta_title": article.meta_title,
@@ -76,7 +77,8 @@ def prepare_article_card(article, lang="te"):
                 "id": ac.category.id,
                 "name": ac.category.name,
                 "slug": ac.category.slug,
-                "section": ac.category.section.slug if ac.category.section else None
+                # ac.category.section is a FK → Section object; serialize as slug string
+                "section": ac.category.section.slug if ac.category.section and hasattr(ac.category.section, 'slug') else str(ac.category.section or '')
             }
             for ac in article.article_categories.all()
         ],

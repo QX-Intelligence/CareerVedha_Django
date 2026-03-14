@@ -51,6 +51,8 @@ def upload_media_file(file_obj, prefix, purpose, user_id, section=None):
 def get_media_url(media_asset):
     """Generates a presigned URL for a MediaAsset."""
     if not media_asset: return None
+    if not media_asset.file_key:  # S3 requires Key length >= 1
+        return None
     s3 = get_s3_client()
     return s3.generate_presigned_url(
         "get_object",

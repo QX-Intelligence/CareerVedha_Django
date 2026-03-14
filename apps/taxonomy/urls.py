@@ -22,6 +22,9 @@ from .views_cms import (
 )
 
 urlpatterns = [
+    # Public / Generic paths
+    path("sections/", SectionList.as_view()),  # Public Sections List
+    
     # CMS / Admin paths (must come before generic section paths)
     path("categories/", AdminCategoryList.as_view()),
     path("categories/create/", CreateCategory.as_view()),
@@ -30,13 +33,13 @@ urlpatterns = [
     path("categories/<int:category_id>/disable/", DisableCategory.as_view()),
     path("categories/<int:category_id>/enable/", EnableCategory.as_view()),
 
-    path("sections/", AdminSectionList.as_view()),
+    path("cms-sections/", AdminSectionList.as_view()),
     path("sections/create/", CreateSection.as_view()),
     path("sections/<int:section_id>/", UpdateSection.as_view()),
     path("sections/<int:section_id>/delete/", DeleteSection.as_view()),
 
     # Public / Generic paths
-    path("sections/", SectionList.as_view()),  # Distinct sections
+    # path("sections/", SectionList.as_view()),  # Distinct sections - Moved to top
     path("all/", CategoryList.as_view()),  # Public full list
     path("<str:section>/", TaxonomyBySection.as_view()),
     path("<str:section>/tree/", TaxonomyTree.as_view()),
