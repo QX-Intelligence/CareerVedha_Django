@@ -76,7 +76,7 @@ def prepare_article_card(article, lang="te"):
                 "id": ac.category.id,
                 "name": ac.category.name,
                 "slug": ac.category.slug,
-                "section": ac.category.section
+                "section": ac.category.section.slug if ac.category.section else None
             }
             for ac in article.article_categories.all()
         ],
