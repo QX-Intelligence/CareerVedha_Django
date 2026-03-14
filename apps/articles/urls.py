@@ -39,7 +39,7 @@ urlpatterns = [
     # Dedicated Top Stories CRUD
     # ==========================
     path("top-stories-cms/", TopStoryAdminViewSet.as_view({'get': 'list', 'post': 'create'})),
-    path("top-stories-cms/<int:pk>/", TopStoryAdminViewSet.as_view({'get': 'retrieve', 'put': 'update', 'partial_update': 'patch', 'delete': 'destroy'})),
+    path("top-stories-cms/<int:pk>/", TopStoryAdminViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})),
     path("top-stories/list/", TopStoryPublicView.as_view()),
     # ==========================
     # CMS

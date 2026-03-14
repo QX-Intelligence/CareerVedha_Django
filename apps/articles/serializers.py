@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Article, ArticleTranslation, ArticleCategory, ArticleMedia, ArticleSection, TopStory
+from .models import Article, ArticleTranslation, ArticleCategory, ArticleMedia, ArticleSection, TopStory, TopStoryMedia
 from apps.media.models import MediaAsset
 from apps.media.utils import upload_media_file, detect_media_type
 from apps.media.s3 import get_s3_client
@@ -499,42 +499,84 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
 
         return result
 
-from apps.media.utils import upload_media_file, get_media_url
+class TopStoryMediaSerializer(serializers.ModelSerializer):
+    media_details = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = TopStoryMedia
+        fields = ("id", "media_details", "position")
+
+    def get_media_details(self, obj):
+        if obj.media:
+            from apps.media.utils import get_media_url
+            return {
+                "id": obj.media.id,
+                "title": obj.media.title,
+                "url": get_media_url(obj.media),
+                "media_type": obj.media.media_type,
+                "content_type": obj.media.content_type
+            }
+        return None
 
 class TopStorySerializer(serializers.ModelSerializer):
-    image_file = serializers.ImageField(write_only=True, required=False)
+    media = TopStoryMediaSerializer(source="media_links", many=True, read_only=True)
+    media_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+    category_detail = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = TopStory
         fields = [
-            "id", "title", "description", "image_url", "image_file",
-            "category", "publish_date", "expiry_date", "is_top_story",
-            "views", "created_at", "updated_at"
+            "id", "title_en", "title_te", "description_en", "description_te",
+            "category", "category_detail", "rank", "publish_date", "expiry_date", 
+            "is_top_story", "views", "created_at", "updated_at", "media", "media_ids"
         ]
         read_only_fields = ["id", "views", "created_at", "updated_at"]
 
-    def create(self, validated_data):
-        image_file = validated_data.pop("image_file", None)
-        if image_file:
-            asset = upload_media_file(
-                file_obj=image_file,
-                prefix="top-stories",
-                purpose="top-story",
-                user_id=self.context.get("request").user.username if self.context.get("request") else "admin"
-            )
-            validated_data["image_url"] = get_media_url(asset)
+    def get_category_detail(self, obj):
+        if obj.category:
+            return {
+                "id": obj.category.id,
+                "name": obj.category.name,
+                "slug": obj.category.slug
+            }
+        return None
 
-        return super().create(validated_data)
+    def create(self, validated_data):
+        media_ids = validated_data.pop("media_ids", [])
+        top_story = super().create(validated_data)
+        
+        for idx, media_id in enumerate(media_ids):
+            try:
+                asset = MediaAsset.objects.get(id=media_id)
+                TopStoryMedia.objects.create(
+                    top_story=top_story,
+                    media=asset,
+                    position=idx
+                )
+            except MediaAsset.DoesNotExist:
+                pass
+                
+        return top_story
 
     def update(self, instance, validated_data):
-        image_file = validated_data.pop("image_file", None)
-        if image_file:
-            asset = upload_media_file(
-                file_obj=image_file,
-                prefix="top-stories",
-                purpose="top-story",
-                user_id=self.context.get("request").user.username if self.context.get("request") else "admin"
-            )
-            validated_data["image_url"] = get_media_url(asset)
+        media_ids = validated_data.pop("media_ids", None)
+        top_story = super().update(instance, validated_data)
+        
+        if media_ids is not None:
+            TopStoryMedia.objects.filter(top_story=top_story).delete()
+            for idx, media_id in enumerate(media_ids):
+                try:
+                    asset = MediaAsset.objects.get(id=media_id)
+                    TopStoryMedia.objects.create(
+                        top_story=top_story,
+                        media=asset,
+                        position=idx
+                    )
+                except MediaAsset.DoesNotExist:
+                    pass
 
-        return super().update(instance, validated_data)
+        return top_story

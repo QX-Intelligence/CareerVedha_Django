@@ -263,20 +263,20 @@ class ArticleMedia(models.Model):
 
 
 class TopStory(models.Model):
-    CATEGORY_CHOICES = [
-        ("EXAM", "Exam"),
-        ("RESULTS", "Results"),
-        ("ADMISSIONS", "Admissions"),
-        ("SCHOLARSHIPS", "Scholarships"),
-        ("STUDY_TIPS", "Study Tips"),
-        ("JOB_NOTIFICATION", "Job Notification"),
-        ("HOT_TOPIC", "Hot Topic"),
-    ]
-
-    title = models.CharField(max_length=255)
-    description = models.TextField()
-    image_url = models.URLField(max_length=500, blank=True, null=True)
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    title_en = models.CharField(max_length=255, blank=True, default="")
+    title_te = models.CharField(max_length=255, blank=True, default="")
+    description_en = models.TextField(blank=True, default="")
+    description_te = models.TextField(blank=True, default="")
+    
+    category = models.ForeignKey(
+        "taxonomy.Category",
+        on_delete=models.SET_NULL,
+        related_name="top_stories",
+        null=True,
+        blank=True
+    )
+    
+    rank = models.PositiveIntegerField(default=0)
     
     publish_date = models.DateTimeField(default=now)
     expiry_date = models.DateTimeField(null=True, blank=True)
@@ -288,12 +288,34 @@ class TopStory(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-publish_date", "-id"]
+        ordering = ["rank", "-publish_date", "-id"]
         verbose_name_plural = "Top Stories"
 
     def __str__(self):
-        return self.title
+        return self.title_en or self.title_te or f"Top Story {self.id}"
 
     @property
     def is_expired(self):
         return bool(self.expiry_date and self.expiry_date < now())
+
+
+class TopStoryMedia(models.Model):
+    top_story = models.ForeignKey(
+        TopStory,
+        on_delete=models.CASCADE,
+        related_name="media_links"
+    )
+    media = models.ForeignKey(
+        "media.MediaAsset",
+        on_delete=models.CASCADE,
+        related_name="top_story_links"
+    )
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        unique_together = ("top_story", "media")
+
+    def __str__(self):
+        return f"TS:{self.top_story_id} -> Media:{self.media_id}"
