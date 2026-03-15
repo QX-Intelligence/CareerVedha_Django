@@ -6,6 +6,7 @@ from .views import (
     TaxonomyTree,
     CategoryList,
     SectionList,
+    TaxonomyByLevels,
 )
 
 from .views_cms import (
@@ -49,4 +50,5 @@ urlpatterns = [
 
     # optional (slug-based children, root only)
     path("<str:section>/<str:slug>/children/", CategoryChildrenBySlug.as_view()),
+    path("<str:section>/levels/", TaxonomyByLevels.as_view()),
 ]

@@ -155,6 +155,60 @@ class TaxonomyTree(APIView):
         return Response([build(r) for r in roots], status=status.HTTP_200_OK)
 
 
+class TaxonomyByLevels(APIView):
+    """
+    GET /api/taxonomy/<section>/levels/
+    Returns all categories grouped by level (flat lists)
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, section):
+        # Fetch all active categories for this section
+        all_cats = list(Category.objects.filter(
+            section__slug=section,
+            is_active=True
+        ).select_related('parent'))
+
+        # Maps to store results
+        levels = {
+            "categories": [],    # Level 0 (depth 0 from root)
+            "sub_categories": [], # Level 1
+            "segments": [],      # Level 2
+            "topics": []         # Level 3
+        }
+
+        # Helper to find depth recursively (memoized or simple loop)
+        def get_depth(cat):
+            depth = 0
+            curr = cat
+            while curr.parent:
+                depth += 1
+                curr = curr.parent
+            return depth
+
+        for cat in all_cats:
+            depth = get_depth(cat)
+            data = {
+                "id": cat.id,
+                "name": cat.name,
+                "slug": cat.slug,
+                "parent_id": cat.parent_id,
+                "rank": cat.rank
+            }
+            
+            if depth == 0:
+                levels["categories"].append(data)
+            elif depth == 1:
+                levels["sub_categories"].append(data)
+            elif depth == 2:
+                levels["segments"].append(data)
+            elif depth >= 3:
+                levels["topics"].append(data)
+
+        return Response(levels, status=status.HTTP_200_OK)
+
+
 class CategoryList(APIView):
     """
     GET /api/taxonomy/all/ - All categories flat list (PUBLIC)
