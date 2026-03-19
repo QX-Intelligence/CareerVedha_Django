@@ -1,8 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.core.cache import cache
 
 from .models import Category, Section
+from .cache import get_taxonomy_cache_key, TAXONOMY_CACHE_TIMEOUT
 
 
 
@@ -16,23 +18,27 @@ class TaxonomyBySection(APIView):
     permission_classes = []
 
     def get(self, request, section):
-        categories = Category.objects.filter(
-            section__slug=section,
-            parent__isnull=True,
-            is_active=True
-        ).order_by("name", "id")
+        cache_key = get_taxonomy_cache_key("TaxonomyBySection", section=section)
+        data = cache.get(cache_key)
+        
+        if data is None:
+            categories = Category.objects.filter(
+                section__slug=section,
+                parent__isnull=True,
+                is_active=True
+            ).order_by("name", "id")
 
-        return Response(
-            [
+            data = [
                 {
                     "id": c.id,
                     "name": c.name,
                     "slug": c.slug,
                 }
                 for c in categories
-            ],
-            status=status.HTTP_200_OK,
-        )
+            ]
+            cache.set(cache_key, data, TAXONOMY_CACHE_TIMEOUT)
+
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class CategoryChildrenBySlug(APIView):
@@ -45,23 +51,26 @@ class CategoryChildrenBySlug(APIView):
     permission_classes = []
 
     def get(self, request, section, slug):
-        parent = Category.objects.filter(
-            section__slug=section,
-            slug=slug,
-            parent__isnull=True,
-            is_active=True,
-        ).first()
+        cache_key = get_taxonomy_cache_key("CategoryChildrenBySlug", section=section, slug=slug)
+        data = cache.get(cache_key)
+        
+        if data is None:
+            parent = Category.objects.filter(
+                section__slug=section,
+                slug=slug,
+                parent__isnull=True,
+                is_active=True,
+            ).first()
 
-        if not parent:
-            return Response(
-                {"error": "Category not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            if not parent:
+                return Response(
+                    {"error": "Category not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-        children = parent.children.filter(is_active=True).order_by("name", "id")
+            children = parent.children.filter(is_active=True).order_by("name", "id")
 
-        return Response(
-            [
+            data = [
                 {
                     "id": c.id,
                     "name": c.name,
@@ -69,9 +78,10 @@ class CategoryChildrenBySlug(APIView):
                     "parent_id": parent.id,
                 }
                 for c in children
-            ],
-            status=status.HTTP_200_OK,
-        )
+            ]
+            cache.set(cache_key, data, TAXONOMY_CACHE_TIMEOUT)
+
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class CategoryChildrenById(APIView):
@@ -100,22 +110,25 @@ class CategoryChildrenById(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        parent = Category.objects.filter(
-            id=parent_id,
-            section__slug=section,
-            is_active=True
-        ).first()
+        cache_key = get_taxonomy_cache_key("CategoryChildrenById", section=section, parent_id=parent_id)
+        data = cache.get(cache_key)
+        
+        if data is None:
+            parent = Category.objects.filter(
+                id=parent_id,
+                section__slug=section,
+                is_active=True
+            ).first()
 
-        if not parent:
-            return Response(
-                {"error": "Parent category not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            if not parent:
+                return Response(
+                    {"error": "Parent category not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-        children = parent.children.filter(is_active=True).order_by("name", "id")
+            children = parent.children.filter(is_active=True).order_by("name", "id")
 
-        return Response(
-            [
+            data = [
                 {
                     "id": c.id,
                     "name": c.name,
@@ -123,9 +136,10 @@ class CategoryChildrenById(APIView):
                     "parent_id": parent.id,
                 }
                 for c in children
-            ],
-            status=status.HTTP_200_OK,
-        )
+            ]
+            cache.set(cache_key, data, TAXONOMY_CACHE_TIMEOUT)
+
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class TaxonomyTree(APIView):
@@ -137,76 +151,83 @@ class TaxonomyTree(APIView):
     permission_classes = []
 
     def get(self, request, section):
-        def build(node: Category):
-            children = node.children.filter(is_active=True).order_by("name", "id")
-            return {
-                "id": node.id,
-                "name": node.name,
-                "slug": node.slug,
-                "children": [build(c) for c in children],
-            }
+        cache_key = get_taxonomy_cache_key("TaxonomyTree", section=section)
+        data = cache.get(cache_key)
+        
+        if data is None:
+            def build(node: Category):
+                children = node.children.filter(is_active=True).order_by("name", "id")
+                return {
+                    "id": node.id,
+                    "name": node.name,
+                    "slug": node.slug,
+                    "children": [build(c) for c in children],
+                }
 
-        roots = Category.objects.filter(
-            section__slug=section,
-            parent__isnull=True,
-            is_active=True
-        ).order_by("name", "id")
+            roots = Category.objects.filter(
+                section__slug=section,
+                parent__isnull=True,
+                is_active=True
+            ).order_by("name", "id")
 
-        return Response([build(r) for r in roots], status=status.HTTP_200_OK)
+            data = [build(r) for r in roots]
+            cache.set(cache_key, data, TAXONOMY_CACHE_TIMEOUT)
+            
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class TaxonomyByLevels(APIView):
     """
     GET /api/taxonomy/<section>/levels/
-    Returns all categories grouped by level (flat lists)
+    Returns a nested tree structure with level-specific keys:
+    Root -> sub_categories -> segments -> topics -> children
     """
     authentication_classes = []
     permission_classes = []
 
     def get(self, request, section):
-        # Fetch all active categories for this section
-        all_cats = list(Category.objects.filter(
-            section__slug=section,
-            is_active=True
-        ).select_related('parent'))
+        cache_key = get_taxonomy_cache_key("TaxonomyByLevels", section=section)
+        tree = cache.get(cache_key)
+        
+        if tree is None:
+            def build_tree(node, depth):
+                # Define keys for children based on depth
+                if depth == 0:
+                    child_key = "sub_categories"
+                elif depth == 1:
+                    child_key = "segments"
+                elif depth == 2:
+                    child_key = "topics"
+                else:
+                    child_key = "children"
 
-        # Maps to store results
-        levels = {
-            "categories": [],    # Level 0 (depth 0 from root)
-            "sub_categories": [], # Level 1
-            "segments": [],      # Level 2
-            "topics": []         # Level 3
-        }
+                children = node.children.filter(is_active=True).order_by("rank", "name")
+                
+                data = {
+                    "id": node.id,
+                    "name": node.name,
+                    "slug": node.slug,
+                    "rank": node.rank,
+                    "depth": depth
+                }
 
-        # Helper to find depth recursively (memoized or simple loop)
-        def get_depth(cat):
-            depth = 0
-            curr = cat
-            while curr.parent:
-                depth += 1
-                curr = curr.parent
-            return depth
+                if children.exists():
+                    data[child_key] = [build_tree(c, depth + 1) for c in children]
+                else:
+                    data[child_key] = []
 
-        for cat in all_cats:
-            depth = get_depth(cat)
-            data = {
-                "id": cat.id,
-                "name": cat.name,
-                "slug": cat.slug,
-                "parent_id": cat.parent_id,
-                "rank": cat.rank
-            }
+                return data
+
+            roots = Category.objects.filter(
+                section__slug=section,
+                parent__isnull=True,
+                is_active=True
+            ).order_by("rank", "name")
+
+            tree = [build_tree(r, 0) for r in roots]
+            cache.set(cache_key, tree, TAXONOMY_CACHE_TIMEOUT)
             
-            if depth == 0:
-                levels["categories"].append(data)
-            elif depth == 1:
-                levels["sub_categories"].append(data)
-            elif depth == 2:
-                levels["segments"].append(data)
-            elif depth >= 3:
-                levels["topics"].append(data)
-
-        return Response(levels, status=status.HTTP_200_OK)
+        return Response(tree, status=status.HTTP_200_OK)
 
 
 class CategoryList(APIView):
@@ -218,18 +239,24 @@ class CategoryList(APIView):
     permission_classes = []
 
     def get(self, request):
-        categories = Category.objects.filter(is_active=True).order_by("section__slug", "name")
-        data = [
-            {
-                "id": c.id,
-                "name": c.name,
-                "slug": c.slug,
-                "section": c.section.slug if c.section else None,
-                "parent_id": c.parent_id,
-                "rank": c.rank
-            }
-            for c in categories
-        ]
+        cache_key = get_taxonomy_cache_key("CategoryList")
+        data = cache.get(cache_key)
+        
+        if data is None:
+            categories = Category.objects.filter(is_active=True).order_by("section__slug", "name")
+            data = [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "slug": c.slug,
+                    "section": c.section.slug if c.section else None,
+                    "parent_id": c.parent_id,
+                    "rank": c.rank
+                }
+                for c in categories
+            ]
+            cache.set(cache_key, data, TAXONOMY_CACHE_TIMEOUT)
+            
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -242,6 +269,12 @@ class SectionList(APIView):
     permission_classes = []
 
     def get(self, request):
-        sections = Section.objects.filter(is_active=True).order_by('rank', 'name')
-        data = [{"id": s.slug, "name": s.name} for s in sections]
+        cache_key = get_taxonomy_cache_key("SectionList")
+        data = cache.get(cache_key)
+        
+        if data is None:
+            sections = Section.objects.filter(is_active=True).order_by('rank', 'name')
+            data = [{"id": s.slug, "name": s.name} for s in sections]
+            cache.set(cache_key, data, TAXONOMY_CACHE_TIMEOUT)
+            
         return Response(data, status=status.HTTP_200_OK)

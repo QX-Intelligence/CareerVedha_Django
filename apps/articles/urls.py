@@ -27,7 +27,7 @@ from .views_public import PublicArticle
 from .views_list_cursor import PublicArticlesListCursor
 from .views_published import PublishedArticlesList, TopStoriesView, RelatedArticlesView
 from .views_trending import TrendingArticles
-from .views_filters import ArticleFilters
+from .views_filters import ArticleFilters, TaxonomyArticleFilters
 from .views_category_block import CategoryBlockArticles     
 from .views_track import TrackArticleView
 from .views_suggestions import ArticleSearchSuggestions
@@ -79,8 +79,9 @@ urlpatterns = [
     path("filters/", ArticleFilters.as_view()),
     path("search-suggestions/", ArticleSearchSuggestions.as_view()),
     path("category-block/", CategoryBlockArticles.as_view()),
+    path("taxonomy-filters/", TaxonomyArticleFilters.as_view()),
     # path("current-affairs/", CurrentAffairsView.as_view()),
     path("<str:section>/<slug:slug>/track-view/", TrackArticleView.as_view()),
     path("<str:section>/<slug:slug>/related/", RelatedArticlesView.as_view()),
     path("<str:section>/<slug:slug>/", PublicArticle.as_view()),
-]
+] 

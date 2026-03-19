@@ -30,11 +30,13 @@ class PublishedArticlesList(APIView):
     def get(self, request):
         section = request.GET.get("section")
         category_slug = request.GET.get("category")
+        sub_category_slug = request.GET.get("sub_category")
+        segment_slug = request.GET.get("segment")
         cursor = request.GET.get("cursor")
 
-        # Build cache key
+        # Build cache key including new filters
         ver = get_articles_cache_version()
-        cache_key = f"v{ver}:articles:published:{section}:{category_slug}:{cursor}"
+        cache_key = f"v{ver}:articles:published:{section}:{category_slug}:{sub_category_slug}:{segment_slug}:{cursor}"
         cached = cache.get(cache_key)
         if cached:
             return Response(json.loads(cached))
@@ -56,27 +58,40 @@ class PublishedArticlesList(APIView):
             qs = qs.filter(Q(section__iexact=section) | Q(article_sections__section__iexact=section)).distinct()
 
         # Filter by category (hierarchical support)
+        target_category = None
         if category_slug:
-            # Find the category by slug within the section (if provided)
-            category_filter = Q(slug=category_slug)
+            # 1. Find root level category
+            cat_query = Q(slug=category_slug, parent__isnull=True)
             if section:
-                category_filter &= Q(section__slug__iexact=section)
+                cat_query &= Q(section__slug__iexact=section)
             
-            try:
-                category = Category.objects.filter(category_filter).first()
-                if category:
-                    # Get all child categories recursively
-                    category_ids = self._get_category_tree_ids(category)
-                    # Filter articles that have any of these categories
-                    qs = qs.filter(article_categories__category_id__in=category_ids).distinct()
-            except Category.DoesNotExist:
-                # If category doesn't exist, return empty results
-                return Response({
-                    "results": [],
-                    "next_cursor": None,
-                    "has_next": False,
-                    "limit": PublicArticlesPagination.page_size
-                }, status=200)
+            target_category = Category.objects.filter(cat_query).first()
+            
+            # 2. Traverse to sub-category if provided
+            if target_category and sub_category_slug:
+                sub_cat = Category.objects.filter(slug=sub_category_slug, parent=target_category).first()
+                if sub_cat:
+                    target_category = sub_cat
+                    # 3. Traverse to segment if provided
+                    if segment_slug:
+                        seg_cat = Category.objects.filter(slug=segment_slug, parent=target_category).first()
+                        if seg_cat:
+                            target_category = seg_cat
+
+        if category_slug and not target_category:
+            # If category parameters were provided but no matching category found, return empty
+            return Response({
+                "results": [],
+                "next_cursor": None,
+                "has_next": False,
+                "limit": PublicArticlesPagination.page_size
+            }, status=200)
+
+        if target_category:
+            # Get all child categories recursively
+            category_ids = self._get_category_tree_ids(target_category)
+            # Filter articles that have any of these categories
+            qs = qs.filter(article_categories__category_id__in=category_ids).distinct()
 
         # Apply pagination
         paginator = PublicArticlesPagination()
@@ -195,7 +210,7 @@ class TopStoriesView(APIView):
         lang = request.GET.get("lang", "te").strip()
 
         # Build cache key
-        ver = get_articles_cache_version()
+        ver = get_articles_cache_version(),
         cache_key = f"v{ver}:articles:top_stories:{lang}"
         cached = cache.get(cache_key)
         if cached:

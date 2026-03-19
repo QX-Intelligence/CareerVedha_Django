@@ -6,9 +6,11 @@ from django.shortcuts import get_object_or_404
 
 from apps.common.authentication import JWTAuthentication
 from apps.common.permissions import min_role_permission
+from django.core.cache import cache
 
 from .models import Category, Section
 from .pagination import CategoryCursorPagination
+from .cache import get_taxonomy_cache_key, clear_taxonomy_cache, TAXONOMY_CACHE_TIMEOUT
 
 class AdminCategoryList(APIView):
     """
@@ -25,6 +27,12 @@ class AdminCategoryList(APIView):
         section = request.GET.get("section")
         parent_id = request.GET.get("parent_id")
         active = request.GET.get("active")
+        cursor = request.GET.get("cursor")
+
+        cache_key = get_taxonomy_cache_key("AdminCategoryList", section=section, parent_id=parent_id, active=active, cursor=cursor)
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data, status=200)
 
         qs = Category.objects.all().order_by("section", "parent_id", "rank", "name", "id")
 
@@ -63,14 +71,18 @@ class AdminCategoryList(APIView):
                 for c in page
             ]
             
-            return paginator.get_paginated_response(results)
+            response_data = paginator.get_paginated_response(results).data
+            cache.set(cache_key, response_data, TAXONOMY_CACHE_TIMEOUT)
+            return Response(response_data)
 
-        return Response({
+        empty_data = {
             "results": [],
             "next_cursor": None,
             "has_next": False,
             "limit": paginator.page_size
-        }, status=200)
+        }
+        cache.set(cache_key, empty_data, TAXONOMY_CACHE_TIMEOUT)
+        return Response(empty_data, status=200)
 
 
 class AdminSectionList(APIView):
@@ -84,6 +96,12 @@ class AdminSectionList(APIView):
 
     def get(self, request):
         active = request.GET.get("active")
+        
+        cache_key = get_taxonomy_cache_key("AdminSectionList", active=active)
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            return Response(cached_data, status=200)
+
         qs = Section.objects.all().order_by("rank", "name")
 
         if active == "true":
@@ -102,7 +120,10 @@ class AdminSectionList(APIView):
             }
             for s in qs
         ]
-        return Response({"results": results})
+        
+        data = {"results": results}
+        cache.set(cache_key, data, TAXONOMY_CACHE_TIMEOUT)
+        return Response(data, status=200)
 
 
 class CreateSection(APIView):
@@ -125,6 +146,7 @@ class CreateSection(APIView):
             return Response({"error": "Section with this slug already exists"}, status=409)
 
         sec = Section.objects.create(name=name, slug=slug, rank=rank)
+        clear_taxonomy_cache()
         return Response({"id": sec.id, "name": sec.name, "slug": sec.slug}, status=201)
 
 
@@ -148,6 +170,7 @@ class UpdateSection(APIView):
             sec.is_active = bool(request.data["is_active"])
         
         sec.save()
+        clear_taxonomy_cache()
         return Response({"status": "updated"})
 
 
@@ -161,9 +184,8 @@ class DeleteSection(APIView):
 
     def delete(self, request, section_id):
         sec = get_object_or_404(Section, id=section_id)
-        if sec.categories.exists():
-            return Response({"error": "Cannot delete section with categories"}, status=409)
         sec.delete()
+        clear_taxonomy_cache()
         return Response({"status": "deleted"})
 
 
@@ -218,6 +240,7 @@ class CreateCategory(APIView):
             content=content
         )
 
+        clear_taxonomy_cache()
         return Response(
             {
                 "id": cat.id,
@@ -303,29 +326,24 @@ class UpdateCategory(APIView):
             return Response({"error": "Duplicate slug in same branch"}, status=409)
 
         cat.save()
+        clear_taxonomy_cache()
         return Response({"status": "updated"}, status=200)
 
 
 class DeleteCategory(APIView):
-    """
-    CMS
-    DELETE /api/cms/taxonomy/categories/<id>/
-    Role: ADMIN ONLY
-
-    ❌ Hard delete only allowed if no children.
-    """
-
     authentication_classes = [JWTAuthentication]
-    permission_classes = [min_role_permission("ADMIN")]
+    permission_classes = [min_role_permission("ADMIN")]  # covers admin & super admin
 
     def delete(self, request, category_id):
-
         cat = get_object_or_404(Category, id=category_id)
 
-        if cat.children.exists():
-            return Response({"error": "Cannot delete category with children"}, status=409)
+        # delete children first
+        for child in cat.children.all():
+            child.delete()
 
+        # now delete parent
         cat.delete()
+        clear_taxonomy_cache()
         return Response({"status": "deleted"}, status=200)
 
 
@@ -344,6 +362,7 @@ class DisableCategory(APIView):
         cat = get_object_or_404(Category, id=category_id)
         cat.is_active = False
         cat.save(update_fields=["is_active"])
+        clear_taxonomy_cache()
         return Response({"status": "disabled"}, status=200)
 
 
@@ -362,5 +381,6 @@ class EnableCategory(APIView):
         cat = get_object_or_404(Category, id=category_id)
         cat.is_active = True
         cat.save(update_fields=["is_active"])
+        clear_taxonomy_cache()
         return Response({"status": "enabled"}, status=200)
  
