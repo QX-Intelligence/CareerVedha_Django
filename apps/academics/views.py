@@ -43,7 +43,7 @@ class MaterialList(generics.ListAPIView):
     queryset = AcademicMaterial.objects.filter(status="PUBLISHED", deleted_at__isnull=True)
     serializer_class = AcademicMaterialSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ["level", "subject", "category", "chapter"]
+    filterset_fields = ["subject__level", "subject", "category", "chapter"]
     search_fields = ["translations__title"]
 
 
