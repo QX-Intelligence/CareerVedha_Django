@@ -15,15 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # -------------------------------
       # 1. Checkout
-      # -------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # -------------------------------
       # 2. AWS Auth
-      # -------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -31,24 +27,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # -------------------------------
-      # 3. Setup Docker Buildx
-      # -------------------------------
+      # 3. Docker setup
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # -------------------------------
       # 4. Login to ECR
-      # -------------------------------
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # -------------------------------
-      # 5. Set dynamic image tag (SHA)
-      # -------------------------------
+      # 5. Set image URI
       - name: Set Image URI
         run: |
           IMAGE_TAG=${GITHUB_SHA}
@@ -56,9 +46,7 @@ jobs:
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      # -------------------------------
-      # 6. Build & Push (NO CACHE)
-      # -------------------------------
+      # 6. Build & Push (no cache)
       - name: Build and Push Docker Image
         run: |
           docker buildx build \
@@ -67,38 +55,20 @@ jobs:
             -t $IMAGE_URI \
             --push .
 
-      # -------------------------------
       # 7. Deploy via SSM
-      # -------------------------------
       - name: Deploy to EC2 via SSM
         run: |
           aws ssm send-command \
             --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy django service" \
-            --parameters commands="
-
-              echo 'Logging into ECR'
-              aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
-
-              echo 'Switching directory'
-              cd $APP_DIR
-
-              echo 'Stopping old containers'
-              docker-compose down --remove-orphans || true
-
-              echo 'Removing ONLY django images'
-              docker images | grep django | awk '{print \$3}' | xargs -r docker rmi -f
-
-              echo 'Pulling latest image'
-              docker pull $IMAGE_URI
-
-              echo 'Starting new container'
-              IMAGE_TAG=${IMAGE_TAG} docker-compose up -d --force-recreate
-
-              echo 'Running containers'
-              docker ps
-
-              echo 'Django images'
-              docker images | grep django
-            "
+            --parameters 'commands=[
+              "aws ecr get-login-password --region ap-south-2 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-2.amazonaws.com",
+              "cd /home/ec2-user/django",
+              "docker-compose down --remove-orphans || true",
+              "docker images | grep django | awk \"{print \\$3}\" | xargs -r docker rmi -f",
+              "docker pull '${{ env.IMAGE_URI }}'",
+              "IMAGE_TAG=${{ env.IMAGE_TAG }} docker-compose up -d --force-recreate",
+              "docker ps",
+              "docker images | grep django"
+            ]'
