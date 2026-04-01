@@ -30,27 +30,24 @@ class PublicArticlesListCursor(APIView):
         if cached:
             return Response(json.loads(cached))
 
-        qs = Article.objects.filter(status="PUBLISHED", noindex=False, published_at__lte=now())
+        qs = Article.objects.prefetch_related(
+            'translations',
+            'media_links__media',
+            'article_categories__category'
+        ).filter(status="PUBLISHED", noindex=False, published_at__lte=now())
         qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
 
         if section:
-            qs = qs.filter(section=section)
+            # Check primary section or additional sections
+            qs = qs.filter(Q(section=section) | Q(article_sections__section=section)).distinct()
 
         paginator = PublicArticlesPagination()
         page = paginator.paginate_queryset(qs, request)
         
         if page is not None:
-            results = [
-                {
-                    "id": a.id,
-                    "slug": a.slug,
-                    "section": a.section,
-                    "summary": a.summary,
-                    "published_at": a.published_at,
-                    "created_at": a.created_at,
-                }
-                for a in page
-            ]
+            lang = request.GET.get("lang", "te").strip()
+            from .utils import prepare_article_card
+            results = [x for x in [prepare_article_card(a, lang) for a in page] if x]
 
             response = paginator.get_paginated_response(results)
             cache.set(cache_key, json.dumps(response.data, default=str), timeout=300)

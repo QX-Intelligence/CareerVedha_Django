@@ -54,7 +54,7 @@ class ArticleTranslationSerializer(serializers.ModelSerializer):
 class ArticleCategoryDetailSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='category.id')
     name = serializers.CharField(source='category.name')
-    section = serializers.CharField(source='category.section')
+    section = serializers.CharField(source='category.section.slug', allow_null=True, required=False)
     slug = serializers.CharField(source='category.slug')
     is_active = serializers.BooleanField(source='category.is_active')
 
@@ -409,6 +409,7 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
     title = serializers.SerializerMethodField()
     content = serializers.SerializerMethodField()
     summary = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
 
     class Meta:
         model = Article
@@ -430,6 +431,7 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "media",
+            "categories",
         )
 
     def get_title(self, obj):
@@ -499,6 +501,19 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
 
         return result
 
+    def get_categories(self, obj):
+        # Fetch categories linked to this article
+        categories = obj.article_categories.all()
+        return [
+            {
+                "id": ac.category.id,
+                "name": ac.category.name,
+                "slug": ac.category.slug,
+                "section": ac.category.section.slug if ac.category.section and hasattr(ac.category.section, 'slug') else str(ac.category.section or '')
+            }
+            for ac in categories
+        ]
+
 class TopStoryMediaSerializer(serializers.ModelSerializer):
     media_details = serializers.SerializerMethodField(read_only=True)
 
@@ -541,7 +556,8 @@ class TopStorySerializer(serializers.ModelSerializer):
             return {
                 "id": obj.category.id,
                 "name": obj.category.name,
-                "slug": obj.category.slug
+                "slug": obj.category.slug,
+                "section": obj.category.section.slug if obj.category.section and hasattr(obj.category.section, 'slug') else str(obj.category.section or '')
             }
         return None
 
