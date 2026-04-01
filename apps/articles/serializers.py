@@ -182,6 +182,35 @@ class ArticleSerializer(serializers.ModelSerializer):
             if ac.category
         ]
 
+    def to_internal_value(self, data):
+        # 🧪 Robust parsing for Multipart/Form-Data (handles stringified lists like "[1,2]" or "1,2")
+        # We catch these before they reach the ListField validation
+        mutable_data = data.copy() if hasattr(data, 'copy') else data
+        
+        # 📂 Handle category_ids stringified list
+        if 'category_ids' in mutable_data:
+            val = mutable_data.get('category_ids')
+            if isinstance(val, str) and (val.startswith('[') or ',' in val):
+                try:
+                    import json
+                    parsed = json.loads(val) if val.startswith('[') else val.split(',')
+                    mutable_data['category_ids'] = [int(x) for x in parsed if str(x).strip()]
+                except (ValueError, json.JSONDecodeError):
+                    pass
+        
+        # 📂 Handle additional_sections stringified list
+        if 'additional_sections' in mutable_data:
+            val = mutable_data.get('additional_sections')
+            if isinstance(val, str) and (val.startswith('[') or ',' in val):
+                try:
+                    import json
+                    parsed = json.loads(val) if val.startswith('[') else val.split(',')
+                    mutable_data['additional_sections'] = [str(x).strip() for x in parsed if str(x).strip()]
+                except (ValueError, json.JSONDecodeError):
+                    pass
+
+        return super().to_internal_value(mutable_data)
+
     def to_representation(self, instance):
         # We manually inject category_ids since it's a many-to-many through record
         data = super().to_representation(instance)
