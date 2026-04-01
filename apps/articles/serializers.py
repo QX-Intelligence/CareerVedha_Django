@@ -57,10 +57,20 @@ class ArticleCategoryDetailSerializer(serializers.ModelSerializer):
     section = serializers.CharField(source='category.section.slug', allow_null=True, required=False)
     slug = serializers.CharField(source='category.slug')
     is_active = serializers.BooleanField(source='category.is_active')
+    parent = serializers.SerializerMethodField()
+    
+    def get_parent(self, obj):
+        if obj.category and obj.category.parent:
+            return {
+                "id": obj.category.parent.id,
+                "name": obj.category.parent.name,
+                "slug": obj.category.parent.slug
+            }
+        return None
 
     class Meta:
         model = ArticleCategory
-        fields = ("id", "name", "section", "slug", "is_active")
+        fields = ("id", "name", "section", "slug", "is_active", "parent")
 
 
 class ArticleSerializer(serializers.ModelSerializer):
@@ -509,7 +519,12 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
                 "id": ac.category.id,
                 "name": ac.category.name,
                 "slug": ac.category.slug,
-                "section": ac.category.section.slug if ac.category.section and hasattr(ac.category.section, 'slug') else str(ac.category.section or '')
+                "section": ac.category.section.slug if ac.category.section and hasattr(ac.category.section, 'slug') else str(ac.category.section or ''),
+                "parent": {
+                    "id": ac.category.parent.id,
+                    "name": ac.category.parent.name,
+                    "slug": ac.category.parent.slug
+                } if ac.category.parent else None
             }
             for ac in categories
         ]

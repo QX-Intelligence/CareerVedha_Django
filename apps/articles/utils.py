@@ -78,7 +78,12 @@ def prepare_article_card(article, lang="te"):
                 "name": ac.category.name,
                 "slug": ac.category.slug,
                 # ac.category.section is a FK → Section object; serialize as slug string
-                "section": ac.category.section.slug if ac.category.section and hasattr(ac.category.section, 'slug') else str(ac.category.section or '')
+                "section": ac.category.section.slug if ac.category.section and hasattr(ac.category.section, 'slug') else str(ac.category.section or ''),
+                "parent": {
+                    "id": ac.category.parent.id,
+                    "name": ac.category.parent.name,
+                    "slug": ac.category.parent.slug
+                } if ac.category.parent else None
             }
             for ac in article.article_categories.all()
         ],
