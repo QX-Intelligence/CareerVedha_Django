@@ -60,13 +60,15 @@ class ArticleCategoryDetailSerializer(serializers.ModelSerializer):
     parent = serializers.SerializerMethodField()
     
     def get_parent(self, obj):
-        if obj.category and obj.category.parent:
-            return {
-                "id": obj.category.parent.id,
-                "name": obj.category.parent.name,
-                "slug": obj.category.parent.slug
-            }
-        return None
+        from .utils import format_category_detail
+        parent = obj.category.parent if obj.category else None
+        if not parent:
+            return None
+        return {
+            "id": parent.id,
+            "name": parent.name,
+            "slug": parent.slug
+        }
 
     class Meta:
         model = ArticleCategory
@@ -83,7 +85,7 @@ class ArticleSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
-    categories = ArticleCategoryDetailSerializer(source='article_categories', many=True, read_only=True)
+    categories = serializers.SerializerMethodField(read_only=True)
     
     additional_sections = serializers.ListField(
         child=serializers.CharField(),
@@ -171,6 +173,13 @@ class ArticleSerializer(serializers.ModelSerializer):
             "updated_at",
             "sections",
         )
+
+    def get_categories(self, obj):
+        from .utils import format_category_detail
+        return [
+            format_category_detail(ac.category) 
+            for ac in obj.article_categories.all()
+        ]
 
     def get_title(self, obj):
         return obj.title
@@ -513,19 +522,10 @@ class PublicArticleDetailSerializer(serializers.ModelSerializer):
 
     def get_categories(self, obj):
         # Fetch categories linked to this article
+        from .utils import format_category_detail
         categories = obj.article_categories.all()
         return [
-            {
-                "id": ac.category.id,
-                "name": ac.category.name,
-                "slug": ac.category.slug,
-                "section": ac.category.section.slug if ac.category.section and hasattr(ac.category.section, 'slug') else str(ac.category.section or ''),
-                "parent": {
-                    "id": ac.category.parent.id,
-                    "name": ac.category.parent.name,
-                    "slug": ac.category.parent.slug
-                } if ac.category.parent else None
-            }
+            format_category_detail(ac.category)
             for ac in categories
         ]
 
@@ -567,14 +567,8 @@ class TopStorySerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "views", "created_at", "updated_at"]
 
     def get_category_detail(self, obj):
-        if obj.category:
-            return {
-                "id": obj.category.id,
-                "name": obj.category.name,
-                "slug": obj.category.slug,
-                "section": obj.category.section.slug if obj.category.section and hasattr(obj.category.section, 'slug') else str(obj.category.section or '')
-            }
-        return None
+        from .utils import format_category_detail
+        return format_category_detail(obj.category)
 
     def create(self, validated_data):
         media_ids = validated_data.pop("media_ids", [])

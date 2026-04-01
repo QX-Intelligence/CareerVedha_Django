@@ -53,9 +53,13 @@ class GetFeatures(APIView):
             qs = qs.filter(article__translations__language=lang)
 
         # Filter to only PUBLISHED articles and order
-        qs = qs.filter(article__status="PUBLISHED").select_related("article").prefetch_related("article__translations").order_by("rank", "-id").distinct()
+        qs = qs.filter(article__status="PUBLISHED").select_related("article").prefetch_related(
+            "article__translations",
+            "article__article_categories__category"
+        ).order_by("rank", "-id").distinct()
 
         paginator = ArticleFeatureCursorPagination()
+        from .utils import format_category_detail
         page = paginator.paginate_queryset(qs, request)
 
         features = []
@@ -84,6 +88,10 @@ class GetFeatures(APIView):
                     "rank": f.rank,
                     "is_active": f.is_active,
                     "is_live": f.is_live(),
+                    "categories": [
+                        format_category_detail(ac.category)
+                        for ac in article.article_categories.all()
+                    ],
                     "created_at": f.start_at.isoformat() if f.start_at else None,
                     "ended_at": f.end_at.isoformat() if f.end_at else None,
                 })

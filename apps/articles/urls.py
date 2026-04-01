@@ -32,6 +32,7 @@ from .views_category_block import CategoryBlockArticles
 from .views_track import TrackArticleView
 from .views_suggestions import ArticleSearchSuggestions
 from .views_attach import AttachMediaToArticle
+from .views_language import LanguageFilteredArticles
 from .views_top_stories import TopStoryAdminViewSet, TopStoryPublicView
 
 urlpatterns = [
@@ -74,6 +75,7 @@ urlpatterns = [
     path("section/<str:section>/", SectionFeed.as_view()),
     path("list/", PublicArticlesListCursor.as_view()),
     path("published/", PublishedArticlesList.as_view()),
+    path("language/", LanguageFilteredArticles.as_view()),
     path("top-stories/", TopStoriesView.as_view()),
     path("trending/", TrendingArticles.as_view()),
     path("filters/", ArticleFilters.as_view()),

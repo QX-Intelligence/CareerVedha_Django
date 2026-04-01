@@ -33,7 +33,13 @@ class PublicArticle(APIView):
         article = (
             Article.objects
             .filter(section=section, slug=slug)
-            .prefetch_related('media_links__media', 'translations')
+            .prefetch_related(
+                'media_links__media', 
+                'translations',
+                'article_categories__category',
+                'article_categories__category__section',
+                'article_categories__category__parent'
+            )
             .first()
         )
         if not article:

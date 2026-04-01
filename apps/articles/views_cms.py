@@ -519,11 +519,16 @@ class AdminArticleList(APIView):
             .prefetch_related(
                 'translations',
                 'media_links__media',
-                'article_categories__category'
+                'article_categories__category',
+                'article_categories__category__section',
+                'article_categories__category__parent'
             )
             .all()
             .order_by("-created_at", "-id")
         )
+
+        # Force cache bump to ensure public site re-fetches
+        bump_articles_cache_version()
 
         if section:
             qs = qs.filter(section=section)
@@ -701,8 +706,15 @@ class ArticleSearch(APIView):
         if query.isdigit():
             search_filters |= Q(article__id=int(query))
 
-        qs = ArticleTranslation.objects.filter(search_filters).select_related("article").order_by("-article__created_at", "-id")
+        qs = (
+            ArticleTranslation.objects
+            .filter(search_filters)
+            .select_related("article")
+            .prefetch_related("article__article_categories__category")
+            .order_by("-article__created_at", "-id")
+        )
 
+        from .utils import format_category_detail
         paginator = ArticleSearchPagination()
         page = paginator.paginate_queryset(qs, request)
         if page is not None:
@@ -711,6 +723,12 @@ class ArticleSearch(APIView):
                     "article_id": at.article.id,
                     "language": at.language,
                     "title": at.title,
+                    "section": at.article.section,
+                    "status": at.article.status,
+                    "categories": [
+                        format_category_detail(ac.category)
+                        for ac in at.article.article_categories.all()
+                    ],
                 }
                 for at in page
             ]

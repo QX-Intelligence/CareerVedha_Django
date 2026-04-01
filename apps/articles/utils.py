@@ -43,6 +43,24 @@ def summary_from_content(html_text, max_len=140):
     return plain[:max_len].strip()
 
 
+def format_category_detail(category):
+    """
+    Standardized categorization formatting for all API responses.
+    """
+    if not category:
+        return None
+    return {
+        "id": category.id,
+        "name": category.name,
+        "slug": category.slug,
+        "section": category.section.slug if category.section and hasattr(category.section, 'slug') else str(category.section or ''),
+        "parent": {
+            "id": category.parent.id,
+            "name": category.parent.name,
+            "slug": category.parent.slug
+        } if category.parent else None
+    }
+
 
 def prepare_article_card(article, lang="te"):
     """
@@ -72,19 +90,9 @@ def prepare_article_card(article, lang="te"):
         "published_at": article.published_at,
         "created_at": article.created_at,
         "views_count": article.views_count,
+        "views_count": article.views_count,
         "categories": [
-            {
-                "id": ac.category.id,
-                "name": ac.category.name,
-                "slug": ac.category.slug,
-                # ac.category.section is a FK → Section object; serialize as slug string
-                "section": ac.category.section.slug if ac.category.section and hasattr(ac.category.section, 'slug') else str(ac.category.section or ''),
-                "parent": {
-                    "id": ac.category.parent.id,
-                    "name": ac.category.parent.name,
-                    "slug": ac.category.parent.slug
-                } if ac.category.parent else None
-            }
+            format_category_detail(ac.category)
             for ac in article.article_categories.all()
         ],
     }
