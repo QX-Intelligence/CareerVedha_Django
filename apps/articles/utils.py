@@ -55,11 +55,7 @@ def format_category_detail(category):
         "name": category.name,
         "slug": category.slug,
         "section": category.section.slug if category.section and hasattr(category.section, 'slug') else str(category.section or ''),
-        "parent": {
-            "id": category.parent.id,
-            "name": category.parent.name,
-            "slug": category.parent.slug
-        } if category.parent else None
+        "parent": format_category_detail(category.parent) if category.parent else None
     }
 
 

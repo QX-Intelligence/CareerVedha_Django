@@ -183,10 +183,10 @@ class ArticleSerializer(serializers.ModelSerializer):
         ]
 
     def to_representation(self, instance):
+        # We manually inject category_ids since it's a many-to-many through record
         data = super().to_representation(instance)
-        # Populate category_ids for the frontend if not already present
-        if 'category_ids' not in data or data['category_ids'] is None:
-            data['category_ids'] = list(instance.article_categories.values_list('category_id', flat=True))
+        # Ensure category_ids is always a list of integers
+        data['category_ids'] = list(instance.article_categories.values_list('category_id', flat=True))
         return data
 
     def get_title(self, obj):
@@ -206,12 +206,15 @@ class ArticleSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        # Ensure at least one language is provided
+        # Only require translations on creation
+        # For updates, we allow empty data if fields aren't being changed
+        is_update = self.instance is not None
+        
         has_eng = data.get("eng_title") or data.get("eng_content")
         has_tel = data.get("tel_title") or data.get("tel_content")
         has_nest = bool(data.get("translations"))
         
-        if not (has_eng or has_tel or has_nest):
+        if not is_update and not (has_eng or has_tel or has_nest):
             raise serializers.ValidationError("At least one language translation (Telugu or English) must be provided.")
             
         return data
