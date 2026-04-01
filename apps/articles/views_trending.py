@@ -34,8 +34,9 @@ class TrendingArticles(APIView):
         qs = Article.objects.filter(
             status="PUBLISHED", 
             noindex=False, 
-            published_at__lte=now()
-        ).prefetch_related('translations', 'media_links__media', 'article_categories__category')
+            published_at__lte=now(),
+            translations__language=lang
+        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct()
         
         if section:
             qs = qs.filter(section=section)
@@ -48,7 +49,7 @@ class TrendingArticles(APIView):
         if page is not None:
             results = []
             for a in page:
-                card = prepare_article_card(a, lang)
+                card = prepare_article_card(a, lang, strict=True)
                 if card:
                     results.append(card)
             

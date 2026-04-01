@@ -82,7 +82,6 @@ class ArticleSerializer(serializers.ModelSerializer):
 
     category_ids = serializers.ListField(
         child=serializers.IntegerField(),
-        write_only=True,
         required=False
     )
     categories = serializers.SerializerMethodField(read_only=True)
@@ -176,10 +175,19 @@ class ArticleSerializer(serializers.ModelSerializer):
 
     def get_categories(self, obj):
         from .utils import format_category_detail
+        # Use prefetched article_categories
         return [
             format_category_detail(ac.category) 
             for ac in obj.article_categories.all()
+            if ac.category
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Populate category_ids for the frontend if not already present
+        if 'category_ids' not in data or data['category_ids'] is None:
+            data['category_ids'] = list(instance.article_categories.values_list('category_id', flat=True))
+        return data
 
     def get_title(self, obj):
         return obj.title

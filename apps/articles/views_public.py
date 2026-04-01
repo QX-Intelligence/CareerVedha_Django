@@ -54,14 +54,15 @@ class PublicArticle(APIView):
         if article.expires_at and article.expires_at < now():
             return Response({"error": "Expired"}, status=status.HTTP_410_GONE)
 
+        # Strict language matching: Ensure translation exists for specifically requested lang
+        translation_exists = article.translations.filter(language=lang).exists()
+        if not translation_exists:
+             return Response({"error": f"Content not available in {lang}"}, status=status.HTTP_404_NOT_FOUND)
+
         serializer = PublicArticleDetailSerializer(
             article, 
             context={"lang": lang, "request": request}
         )
-        
-        # Check if translation exists for the requested language or default
-        if not serializer.data.get("title"):
-             return Response({"error": "Content not available in this language"}, status=status.HTTP_404_NOT_FOUND)
 
         # Cache for 5 minutes (300 seconds) with versioning
         cache.set(cache_key, json.dumps(serializer.data, default=str), timeout=300)

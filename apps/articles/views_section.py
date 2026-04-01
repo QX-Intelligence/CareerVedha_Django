@@ -19,7 +19,7 @@ def _exclude_expired(qs):
     return qs.exclude(expires_at__isnull=False, expires_at__lt=t)
 
 
-def _get_featured_ids(section: str, feature_type: str, limit: int) -> List[int]:
+def _get_featured_ids(section: str, feature_type: str, limit: int, lang: str = "te") -> List[int]:
     qs = (
         ArticleFeature.objects.filter(
             section=section,
@@ -28,8 +28,10 @@ def _get_featured_ids(section: str, feature_type: str, limit: int) -> List[int]:
             article__status="PUBLISHED",
             article__noindex=False,
             article__published_at__lte=now(),
+            article__translations__language=lang,
         )
         .select_related("article")
+        .distinct()
         .order_by("rank", "-id")
     )
 
@@ -50,8 +52,9 @@ def _fetch_articles_preserve_order(ids: List[int], lang: str):
         id__in=ids, 
         status="PUBLISHED", 
         noindex=False, 
-        published_at__lte=now()
-    ).prefetch_related('translations', 'media_links__media', 'article_categories__category')
+        published_at__lte=now(),
+        translations__language=lang
+    ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct()
     
     qs = _exclude_expired(qs)
 
@@ -59,7 +62,7 @@ def _fetch_articles_preserve_order(ids: List[int], lang: str):
     ordered = []
     for _id in ids:
         if _id in m:
-            card = prepare_article_card(m[_id], lang)
+            card = prepare_article_card(m[_id], lang, strict=True)
             if card:
                 ordered.append(card)
     return ordered
@@ -84,10 +87,10 @@ class HomeFeed(APIView):
         if cached:
             return Response(json.loads(cached), status=200)
 
-        hero_ids = _get_featured_ids(section="", feature_type="HERO", limit=5)
-        breaking_ids = _get_featured_ids(section="", feature_type="BREAKING", limit=1)
-        top_ids = _get_featured_ids(section="", feature_type="TOP", limit=10)
-        must_read_ids = _get_featured_ids(section="", feature_type="MUST_READ", limit=10)
+        hero_ids = _get_featured_ids(section="", feature_type="HERO", limit=5, lang=lang)
+        breaking_ids = _get_featured_ids(section="", feature_type="BREAKING", limit=1, lang=lang)
+        top_ids = _get_featured_ids(section="", feature_type="TOP", limit=10, lang=lang)
+        must_read_ids = _get_featured_ids(section="", feature_type="MUST_READ", limit=10, lang=lang)
 
         used = set()
         hero_ids = [i for i in hero_ids if i not in used and not used.add(i)]
@@ -103,8 +106,9 @@ class HomeFeed(APIView):
         qs = Article.objects.filter(
             status="PUBLISHED", 
             noindex=False, 
-            published_at__lte=now()
-        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').order_by("-id")
+            published_at__lte=now(),
+            translations__language=lang
+        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct().order_by("-id")
         
         qs = _exclude_expired(qs)
 
@@ -113,7 +117,7 @@ class HomeFeed(APIView):
         
         results = []
         if page is not None:
-            results = [x for x in [prepare_article_card(a, lang) for a in page] if x]
+            results = [x for x in [prepare_article_card(a, lang, strict=True) for a in page] if x]
             
         paginated_response = paginator.get_paginated_response(results)
 
@@ -148,10 +152,10 @@ class SectionFeed(APIView):
         if cached:
             return Response(json.loads(cached), status=200)
 
-        hero_ids = _get_featured_ids(section=section, feature_type="HERO", limit=5)
-        breaking_ids = _get_featured_ids(section=section, feature_type="BREAKING", limit=1)
-        top_ids = _get_featured_ids(section=section, feature_type="TOP", limit=10)
-        must_read_ids = _get_featured_ids(section=section, feature_type="MUST_READ", limit=10)
+        hero_ids = _get_featured_ids(section=section, feature_type="HERO", limit=5, lang=lang)
+        breaking_ids = _get_featured_ids(section=section, feature_type="BREAKING", limit=1, lang=lang)
+        top_ids = _get_featured_ids(section=section, feature_type="TOP", limit=10, lang=lang)
+        must_read_ids = _get_featured_ids(section=section, feature_type="MUST_READ", limit=10, lang=lang)
 
         used = set()
         hero_ids = [i for i in hero_ids if i not in used and not used.add(i)]
@@ -165,7 +169,8 @@ class SectionFeed(APIView):
             Q(section=section) | Q(article_sections__section=section),
             status="PUBLISHED", 
             noindex=False, 
-            published_at__lte=now()
+            published_at__lte=now(),
+            translations__language=lang
         ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct().order_by("-id")
         
         qs = _exclude_expired(qs)
@@ -175,7 +180,7 @@ class SectionFeed(APIView):
         
         results = []
         if page is not None:
-            results = [x for x in [prepare_article_card(a, lang) for a in page] if x]
+            results = [x for x in [prepare_article_card(a, lang, strict=True) for a in page] if x]
             
         paginated_response = paginator.get_paginated_response(results)
 

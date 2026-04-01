@@ -5,13 +5,11 @@ from .models import Article
 from apps.media.s3 import get_s3_client
 
 
-def get_article_translation(article, lang="te"):
+def get_article_translation(article, lang="te", strict=False):
     """
-    Returns the translation for the given language with robust fallbacks.
-    1. Requested language
-    2. Telugu ('te')
-    3. English ('en')
-    4. First available
+    Returns the translation for the given language with optional strict matching.
+    If strict=True, only the exact match is returned, otherwise returns None.
+    If strict=False, follows fallbacks: Requested -> te -> en -> first available.
     """
     translations = list(article.translations.all())
     if not translations:
@@ -21,15 +19,18 @@ def get_article_translation(article, lang="te"):
     tr = next((t for t in translations if t.language == lang), None)
     if tr: return tr
     
-    # 2. Try Telugu
+    if strict:
+        return None
+
+    # 2. Try Telugu fallback
     tr = next((t for t in translations if t.language == "te"), None)
     if tr: return tr
     
-    # 3. Try English
+    # 3. Try English fallback
     tr = next((t for t in translations if t.language == "en"), None)
     if tr: return tr
     
-    # 4. Fallback to first
+    # 4. Fallback to first available
     return translations[0]
 
 def summary_from_content(html_text, max_len=140):
@@ -62,14 +63,15 @@ def format_category_detail(category):
     }
 
 
-def prepare_article_card(article, lang="te"):
+def prepare_article_card(article, lang="te", strict=True):
     """
     Prepares a standardized article card dictionary for public listings.
     Internalizes media resolution.
     Uses prefetched data to avoid N+1 queries.
+    If strict=True, returns None if the requested language translation is missing.
     """
     from apps.media.utils import get_media_url
-    tr = get_article_translation(article, lang)
+    tr = get_article_translation(article, lang, strict=strict)
     if not tr:
         return None
 

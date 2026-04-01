@@ -32,11 +32,10 @@ class PublishedArticlesList(APIView):
         category_slug = request.GET.get("category")
         sub_category_slug = request.GET.get("sub_category")
         segment_slug = request.GET.get("segment")
-        cursor = request.GET.get("cursor")
-
-        # Build cache key including new filters
+        # Build cache key including new filters and language
+        lang = request.GET.get("lang", "te").strip()
         ver = get_articles_cache_version()
-        cache_key = f"v{ver}:articles:published:{section}:{category_slug}:{sub_category_slug}:{segment_slug}:{cursor}"
+        cache_key = f"v{ver}:articles:published:{section}:{lang}:{category_slug}:{sub_category_slug}:{segment_slug}:{cursor}"
         cached = cache.get(cache_key)
         if cached:
             return Response(json.loads(cached))
@@ -49,8 +48,9 @@ class PublishedArticlesList(APIView):
         ).filter(
             status="PUBLISHED", 
             noindex=False, 
-            published_at__lte=now()
-        )
+            published_at__lte=now(),
+            translations__language=lang
+        ).distinct()
         qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
 
         # Filter by section
@@ -98,9 +98,8 @@ class PublishedArticlesList(APIView):
         page = paginator.paginate_queryset(qs, request)
         
         if page is not None:
-            lang = request.GET.get("lang", "te").strip()
             from .utils import prepare_article_card
-            results = [x for x in [prepare_article_card(a, lang) for a in page] if x]
+            results = [x for x in [prepare_article_card(a, lang, strict=True) for a in page] if x]
 
             response = paginator.get_paginated_response(results)
             cache.set(cache_key, json.dumps(response.data, default=str), timeout=300)
@@ -161,8 +160,9 @@ class RelatedArticlesView(APIView):
         ).filter(
             status="PUBLISHED",
             noindex=False,
-            published_at__lte=now()
-        ).exclude(id=source.id)
+            published_at__lte=now(),
+            translations__language=lang
+        ).distinct().exclude(id=source.id)
         
         qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
 
@@ -188,7 +188,7 @@ class RelatedArticlesView(APIView):
         qs = qs.order_by("-published_at")[:5]
 
         from .utils import prepare_article_card
-        results = [x for x in [prepare_article_card(a, lang) for a in qs] if x]
+        results = [x for x in [prepare_article_card(a, lang, strict=True) for a in qs] if x]
 
         data = {"results": results}
         cache.set(cache_key, json.dumps(data, default=str), timeout=300)
@@ -225,8 +225,9 @@ class TopStoriesView(APIView):
             is_top_story=True,
             status="PUBLISHED", 
             noindex=False, 
-            published_at__lte=now()
-        )
+            published_at__lte=now(),
+            translations__language=lang
+        ).distinct()
         # Expiry filter
         qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
 
@@ -234,7 +235,7 @@ class TopStoriesView(APIView):
         qs = qs.order_by("-published_at")[:limit]
 
         from .utils import prepare_article_card
-        results = [x for x in [prepare_article_card(a, lang) for a in qs] if x]
+        results = [x for x in [prepare_article_card(a, lang, strict=True) for a in qs] if x]
 
         data = {"results": results}
         cache.set(cache_key, json.dumps(data, default=str), timeout=300)

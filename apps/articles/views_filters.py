@@ -34,8 +34,9 @@ class ArticleFilters(APIView):
         ).filter(
             status="PUBLISHED", 
             noindex=False, 
-            published_at__lte=now()
-        )
+            published_at__lte=now(),
+            translations__language=lang
+        ).distinct()
         qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
 
         # Filter by section
@@ -86,7 +87,7 @@ class ArticleFilters(APIView):
 
         # Get latest 10 articles for this filter
         from .utils import prepare_article_card
-        latest_articles = [x for x in [prepare_article_card(a, lang) for a in qs.order_by("-published_at")[:10]] if x]
+        latest_articles = [x for x in [prepare_article_card(a, lang, strict=True) for a in qs.order_by("-published_at")[:10]] if x]
 
         return Response(
             {
@@ -125,8 +126,9 @@ class TaxonomyArticleFilters(APIView):
         ).filter(
             status="PUBLISHED", 
             noindex=False, 
-            published_at__lte=now()
-        )
+            published_at__lte=now(),
+            translations__language=lang
+        ).distinct()
         qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
 
         if section:
@@ -164,7 +166,7 @@ class TaxonomyArticleFilters(APIView):
 
         # 4. Results
         from .utils import prepare_article_card
-        articles = [x for x in [prepare_article_card(a, lang) for a in qs.order_by("-published_at")[:10]] if x]
+        articles = [x for x in [prepare_article_card(a, lang, strict=True) for a in qs.order_by("-published_at")[:10]] if x]
         
         return Response({
             "category": {

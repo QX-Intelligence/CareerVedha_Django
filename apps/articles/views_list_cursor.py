@@ -23,9 +23,9 @@ class PublicArticlesListCursor(APIView):
     def get(self, request):
         section = request.GET.get("section")
         cursor = request.GET.get("cursor")
-
+        lang = request.GET.get("lang", "te").strip()
         ver = get_articles_cache_version()
-        cache_key = f"v{ver}:articles:list:{section}:{cursor}"
+        cache_key = f"v{ver}:articles:list:{section}:{lang}:{cursor}"
         cached = cache.get(cache_key)
         if cached:
             return Response(json.loads(cached))
@@ -34,7 +34,12 @@ class PublicArticlesListCursor(APIView):
             'translations',
             'media_links__media',
             'article_categories__category'
-        ).filter(status="PUBLISHED", noindex=False, published_at__lte=now())
+        ).filter(
+            status="PUBLISHED", 
+            noindex=False, 
+            published_at__lte=now(),
+            translations__language=lang
+        ).distinct()
         qs = qs.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now()))
 
         if section:
@@ -45,9 +50,8 @@ class PublicArticlesListCursor(APIView):
         page = paginator.paginate_queryset(qs, request)
         
         if page is not None:
-            lang = request.GET.get("lang", "te").strip()
             from .utils import prepare_article_card
-            results = [x for x in [prepare_article_card(a, lang) for a in page] if x]
+            results = [x for x in [prepare_article_card(a, lang, strict=True) for a in page] if x]
 
             response = paginator.get_paginated_response(results)
             cache.set(cache_key, json.dumps(response.data, default=str), timeout=300)

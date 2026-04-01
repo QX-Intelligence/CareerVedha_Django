@@ -57,8 +57,9 @@ class CategoryBlockArticles(APIView):
                     id__in=article_ids,
                     status="PUBLISHED",
                     noindex=False,
-                    published_at__lte=today
-                )
+                    published_at__lte=today,
+                    translations__language=lang
+                ).distinct()
                 .prefetch_related('translations', 'media_links__media', 'article_categories__category')
                 .exclude(expires_at__isnull=False, expires_at__lt=today)
                 .order_by("-published_at", "-id")[:limit]
@@ -66,7 +67,7 @@ class CategoryBlockArticles(APIView):
 
             results = []
             for a in qs:
-                card = prepare_article_card(a, lang)
+                card = prepare_article_card(a, lang, strict=True)
                 if card:
                     results.append(card)
 

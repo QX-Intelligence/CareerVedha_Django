@@ -25,10 +25,14 @@ class ArticleSearchSuggestions(APIView):
         if not q or len(q) < 2:
             return Response({"suggestions": []}, status=status.HTTP_200_OK)
 
-        qs = Article.objects.filter(status="PUBLISHED", noindex=False).exclude(
+        qs = Article.objects.filter(
+            status="PUBLISHED", 
+            noindex=False,
+            translations__language=lang
+        ).exclude(
             expires_at__isnull=False,
             expires_at__lt=now()
-        )
+        ).distinct()
 
         if section:
             qs = qs.filter(section=section)
@@ -41,13 +45,14 @@ class ArticleSearchSuggestions(APIView):
         suggestions = []
         for a in qs:
             tr = a.translations.filter(language=lang).first()
-            display_title = tr.title if tr else a.title
+            if not tr:
+                continue
 
             suggestions.append({
                 "id": a.id,
                 "slug": a.slug,
                 "section": a.section,
-                "title": display_title,
+                "title": tr.title,
             })
 
         return Response({"suggestions": suggestions}, status=status.HTTP_200_OK)
