@@ -22,10 +22,10 @@ class TrendingArticles(APIView):
     def get(self, request):
         lang = request.GET.get("lang", "te").strip().lower()
         section = request.GET.get("section")
-
         ver = get_articles_cache_version()
         cursor = request.GET.get("cursor")
-        cache_key = f"v{ver}:articles:trending:{section}:{lang}:{cursor}"
+        limit = request.GET.get("limit", 20)
+        cache_key = f"v{ver}:articles:trending:{section}:{lang}:{limit}:{cursor}"
         
         cached = cache.get(cache_key)
         if cached:
@@ -36,7 +36,7 @@ class TrendingArticles(APIView):
             noindex=False, 
             published_at__lte=now(),
             translations__language=lang
-        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct()
+        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct().order_by("-views_count", "-published_at", "-id")
         
         if section:
             qs = qs.filter(section=section)

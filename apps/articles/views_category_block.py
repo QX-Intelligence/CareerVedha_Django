@@ -23,7 +23,7 @@ class CategoryBlockArticles(APIView):
 
     def get(self, request):
         section = (request.GET.get("section") or "").strip()
-        lang = (request.GET.get("lang") or "te").strip()
+        lang = (request.GET.get("lang") or "te").strip().lower()
         limit = int(request.GET.get("limit", 6))
         limit = max(1, min(limit, 20))
 

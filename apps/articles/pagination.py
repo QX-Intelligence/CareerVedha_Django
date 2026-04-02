@@ -6,10 +6,19 @@ class BaseCursorPagination(CursorPagination):
     max_page_size = 100
 
     def get_paginated_response(self, data):
+        next_link = self.get_next_link()
+        next_cursor = None
+        if next_link:
+            from urllib.parse import urlparse, parse_qs
+            parsed = urlparse(next_link)
+            qs = parse_qs(parsed.query)
+            if 'cursor' in qs:
+                next_cursor = qs['cursor'][0]
+
         return Response({
             "results": data,
-            "next_cursor": self.get_next_link().split("cursor=")[1] if self.get_next_link() and "cursor=" in self.get_next_link() else None,
-            "has_next": self.get_next_link() is not None,
+            "next_cursor": next_cursor,
+            "has_next": next_link is not None,
             "limit": self.page_size
         })
 
