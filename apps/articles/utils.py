@@ -15,8 +15,8 @@ def get_article_translation(article, lang="te", strict=False):
     if not translations:
         return None
         
-    # 1. Try requested
-    tr = next((t for t in translations if t.language == lang), None)
+    # 1. Try requested (case-insensitive)
+    tr = next((t for t in translations if t.language.lower().strip() == lang.lower().strip()), None)
     if tr: return tr
     
     if strict:

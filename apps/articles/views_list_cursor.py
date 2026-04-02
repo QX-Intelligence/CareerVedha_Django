@@ -23,7 +23,7 @@ class PublicArticlesListCursor(APIView):
     def get(self, request):
         section = request.GET.get("section")
         cursor = request.GET.get("cursor")
-        lang = request.GET.get("lang", "te").strip()
+        lang = request.GET.get("lang", "te").strip().lower()
         ver = get_articles_cache_version()
         cache_key = f"v{ver}:articles:list:{section}:{lang}:{cursor}"
         cached = cache.get(cache_key)

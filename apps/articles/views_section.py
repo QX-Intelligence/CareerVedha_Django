@@ -78,7 +78,7 @@ class HomeFeed(APIView):
     permission_classes = []
 
     def get(self, request):
-        lang = request.GET.get("lang", "te").strip()
+        lang = request.GET.get("lang", "te").strip().lower()
 
         ver = get_articles_cache_version()
         cursor = request.GET.get("cursor")
@@ -143,7 +143,7 @@ class SectionFeed(APIView):
     permission_classes = []
 
     def get(self, request, section):
-        lang = request.GET.get("lang", "te").strip()
+        lang = request.GET.get("lang", "te").strip().lower()
 
         ver = get_articles_cache_version()
         cursor = request.GET.get("cursor")

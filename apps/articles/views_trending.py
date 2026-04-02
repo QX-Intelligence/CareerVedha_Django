@@ -20,7 +20,7 @@ class TrendingArticles(APIView):
     permission_classes = []
 
     def get(self, request):
-        lang = request.GET.get("lang", "te")
+        lang = request.GET.get("lang", "te").strip().lower()
         section = request.GET.get("section")
 
         ver = get_articles_cache_version()

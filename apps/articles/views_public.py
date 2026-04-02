@@ -21,7 +21,7 @@ class PublicArticle(APIView):
     permission_classes = []
 
     def get(self, request, section, slug):
-        lang = request.GET.get("lang", "te").strip()
+        lang = request.GET.get("lang", "te").strip().lower()
 
         # Check cache first with versioning
         ver = get_articles_cache_version()

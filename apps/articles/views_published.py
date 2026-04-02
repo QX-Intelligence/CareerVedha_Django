@@ -32,10 +32,13 @@ class PublishedArticlesList(APIView):
         category_slug = request.GET.get("category")
         sub_category_slug = request.GET.get("sub_category")
         segment_slug = request.GET.get("segment")
+        cursor = request.GET.get("cursor") 
+
         # Build cache key including new filters and language
-        lang = request.GET.get("lang", "te").strip()
+        lang = request.GET.get("lang", "te").strip().lower()
         ver = get_articles_cache_version()
         cache_key = f"v{ver}:articles:published:{section}:{lang}:{category_slug}:{sub_category_slug}:{segment_slug}:{cursor}"
+        
         cached = cache.get(cache_key)
         if cached:
             return Response(json.loads(cached))
@@ -133,7 +136,7 @@ class RelatedArticlesView(APIView):
     permission_classes = []
 
     def get(self, request, section, slug):
-        lang = request.GET.get("lang", "te").strip()
+        lang = request.GET.get("lang", "te").strip().lower()
 
         # Check cache
         ver = get_articles_cache_version()
@@ -207,10 +210,10 @@ class TopStoriesView(APIView):
 
     def get(self, request):
         limit = 5
-        lang = request.GET.get("lang", "te").strip()
+        lang = request.GET.get("lang", "te").strip().lower()
 
         # Build cache key
-        ver = get_articles_cache_version(),
+        ver = get_articles_cache_version()
         cache_key = f"v{ver}:articles:top_stories:{lang}"
         cached = cache.get(cache_key)
         if cached:
