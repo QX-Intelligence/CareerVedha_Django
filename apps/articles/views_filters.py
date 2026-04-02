@@ -175,4 +175,4 @@ class TaxonomyArticleFilters(APIView):
                 "slug": target_category.slug if target_category else None,
             },
             "results": articles
-        }, status=status.HTTP_200_OK)
+        }, status=status.HTTP_200_OK) 
