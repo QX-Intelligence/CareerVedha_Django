@@ -18,15 +18,18 @@ jobs:
       # 1. Checkout
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Verify & Commit Files
+      # 2. Debug (keep this for now)
+      - name: Verify Commit & Files
         run: |
           echo "COMMIT:"
           git log -1
           echo "FILES:"
           ls apps/common || true
 
-      # 2. AWS Auth
+      # 3. AWS Auth
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -34,47 +37,38 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3. Docker setup
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       # 4. Login to ECR
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 5. Set image URI
-      - name: Set Image URI
+      # 5. Build & Push Image (SIMPLE + RELIABLE)
+      - name: Build and Push Docker Image
         run: |
           IMAGE_TAG=${GITHUB_SHA}
           IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:$IMAGE_TAG
+
+          echo "Building image: $IMAGE_URI"
+
+          docker build --no-cache -t $IMAGE_URI .
+          docker push $IMAGE_URI
+
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      # 6. Build & Push (no cache)
-      - name: Build and Push Docker Image
-        run: |
-          docker buildx build \
-            --no-cache \
-            -t $IMAGE_URI \
-            --push .
-
-      # 7. Deploy via SSM
+      # 6. Deploy via SSM (CLEAN + FORCED)
       - name: Deploy to EC2 via SSM
         run: |
           aws ssm send-command \
             --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy django service" \
-            --parameters 'commands=[
-              "aws ecr get-login-password --region ap-south-2 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-2.amazonaws.com",
-              "cd /home/ec2-user/django",
-              "docker-compose down --remove-orphans || true",
-              "docker images | grep django | awk \"{print \\$3}\" | xargs -r docker rmi -f",
-              "docker pull '${{ env.IMAGE_URI }}'",
-              "IMAGE_TAG=${{ env.IMAGE_TAG }} docker-compose up -d --force-recreate",
-              "docker ps",
-              "docker images | grep django"
-            ]'
+            --parameters "commands=[
+              \"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com\",
+              \"cd ${{ env.APP_DIR }}\",
+              \"docker-compose down --remove-orphans || true\",
+              \"docker system prune -af\",
+              \"export IMAGE_URI=${{ env.IMAGE_URI }}\",
+              \"docker pull ${{ env.IMAGE_URI }}\",
+              \"docker-compose up -d --force-recreate --no-build\",
+              \"docker ps\"
+            ]"
