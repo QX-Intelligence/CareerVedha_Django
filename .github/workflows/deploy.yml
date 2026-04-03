@@ -1,4 +1,3 @@
-##Deployment Docker Pipeline
 name: Build and Deploy Django Service
 
 on:
@@ -22,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. Debug (keep this for now)
+      # 2. Debug (optional but useful)
       - name: Verify Commit & Files
         run: |
           echo "COMMIT:"
@@ -42,12 +41,12 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 5. Build & Push Image (SIMPLE + RELIABLE)
+      # 5. Build & Push Image
       - name: Build and Push Docker Image
         run: |
           IMAGE_TAG=${GITHUB_SHA}
-          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:$IMAGE_TAG
-          echo "IMAGE_URI=${{env.IMAGE_URI}}" > .env
+          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${IMAGE_TAG}
+
           echo "Building image: $IMAGE_URI"
 
           docker build --no-cache -t $IMAGE_URI .
@@ -56,20 +55,21 @@ jobs:
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      # 6. Deploy via SSM (CLEAN + FORCED)
+      # 6. Deploy via SSM (FIXED)
       - name: Deploy to EC2 via SSM
         run: |
           aws ssm send-command \
-            --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy django service" \
-            --parameters "commands=[
+            --parameters commands="[
               \"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com\",
               \"cd ${{ env.APP_DIR }}\",
               \"docker-compose down --remove-orphans || true\",
               \"docker system prune -af\",
-              \"export IMAGE_URI=${{ env.IMAGE_URI }}\",
-              \"docker pull ${{ env.IMAGE_URI }}\",
+              \"echo IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }} > .env\",
+              \"cat .env\",
+              \"docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}\",
               \"docker-compose up -d --force-recreate --no-build\",
               \"docker ps\"
             ]"
