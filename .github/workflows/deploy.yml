@@ -47,7 +47,7 @@ jobs:
         run: |
           IMAGE_TAG=${GITHUB_SHA}
           IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:$IMAGE_TAG
-
+          echo "IMAGE_URI=${{env.IMAGE_URI}}" > .env
           echo "Building image: $IMAGE_URI"
 
           docker build --no-cache -t $IMAGE_URI .
