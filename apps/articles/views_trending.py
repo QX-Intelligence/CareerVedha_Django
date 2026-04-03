@@ -1,10 +1,11 @@
 from django.utils.timezone import now
+from django.db.models import Prefetch
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.core.cache import cache
 import json
 
-from .models import Article
+from .models import Article, ArticleTranslation
 from .cache import get_articles_cache_version
 from .pagination import TrendingArticlesPagination
 from .utils import prepare_article_card
@@ -35,8 +36,15 @@ class TrendingArticles(APIView):
             status="PUBLISHED", 
             noindex=False, 
             published_at__lte=now(),
-            translations__language=lang
-        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct().order_by("-views_count", "-published_at", "-id")
+            translations__language__iexact=lang
+        ).prefetch_related(
+            Prefetch(
+                'translations',
+                queryset=ArticleTranslation.objects.filter(language__iexact=lang)
+            ),
+            'media_links__media',
+            'article_categories__category'
+        ).distinct().order_by("-views_count", "-published_at", "-id")
         
         if section:
             qs = qs.filter(section=section)
