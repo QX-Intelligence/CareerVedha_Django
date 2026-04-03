@@ -58,9 +58,8 @@ jobs:
         run: |
           docker buildx build \
             --no-cache \
-            --platform linux/amd64,linux/arm64 \
             -t $IMAGE_URI \
-            --push .
+            --push $IMAGE_URI
 
       # 7. Deploy via SSM
       - name: Deploy to EC2 via SSM
