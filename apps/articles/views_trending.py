@@ -1,11 +1,10 @@
 from django.utils.timezone import now
+from django.db.models import Prefetch
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.core.cache import cache
 import json
 
-from .models import Article
-from .cache import get_articles_cache_version
+from .models import Article, ArticleTranslation
 from .pagination import TrendingArticlesPagination
 from .utils import prepare_article_card
 
@@ -22,21 +21,29 @@ class TrendingArticles(APIView):
     def get(self, request):
         lang = request.GET.get("lang", "te").strip().lower()
         section = request.GET.get("section")
-        ver = get_articles_cache_version()
         cursor = request.GET.get("cursor")
         limit = request.GET.get("limit", 20)
-        cache_key = f"v{ver}:articles:trending:{section}:{lang}:{limit}:{cursor}"
-        
-        cached = cache.get(cache_key)
-        if cached:
-            return Response(json.loads(cached), status=200)
+
+        # --- CACHE DISABLED FOR TESTING ---
+        # ver = get_articles_cache_version()
+        # cache_key = f"v{ver}:articles:trending:{section}:{lang}:{limit}:{cursor}"
+        # cached = cache.get(cache_key)
+        # if cached:
+        #     return Response(json.loads(cached), status=200)
 
         qs = Article.objects.filter(
             status="PUBLISHED", 
             noindex=False, 
             published_at__lte=now(),
-            translations__language=lang
-        ).prefetch_related('translations', 'media_links__media', 'article_categories__category').distinct().order_by("-views_count", "-published_at", "-id")
+            translations__language__iexact=lang
+        ).prefetch_related(
+            Prefetch(
+                'translations',
+                queryset=ArticleTranslation.objects.filter(language__iexact=lang)
+            ),
+            'media_links__media',
+            'article_categories__category'
+        ).distinct().order_by("-views_count", "-published_at", "-id")
         
         if section:
             qs = qs.filter(section=section)
@@ -54,7 +61,8 @@ class TrendingArticles(APIView):
                     results.append(card)
             
             response = paginator.get_paginated_response(results)
-            cache.set(cache_key, json.dumps(response.data, default=str), timeout=300)
+            # --- CACHE DISABLED FOR TESTING ---
+            # cache.set(cache_key, json.dumps(response.data, default=str), timeout=300)
             return response
 
         return Response({
