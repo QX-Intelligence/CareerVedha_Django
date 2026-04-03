@@ -19,6 +19,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Verify & Commit Files
+        run: |
+          echo "COMMIT:"
+          git log -1
+          echo "FILES:"
+          ls apps/common || true
+
       # 2. AWS Auth
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
