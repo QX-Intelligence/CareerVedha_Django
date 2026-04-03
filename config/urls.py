@@ -1195,4 +1195,5 @@ urlpatterns = [
     path("sitemap.xml", sitemap, {"sitemaps": {"articles": ArticleSitemap, "jobs": JobsSitemap}}),
     path("api/django/academics/", include("apps.academics.urls")),
     path("api/django/media/", include("apps.media.urls")),
+    path("", include("apps.common.urls")),
 ]
