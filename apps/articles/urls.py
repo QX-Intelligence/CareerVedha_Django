@@ -77,7 +77,7 @@ urlpatterns = [
     path("published/", PublishedArticlesList.as_view()),
     path("language/", LanguageFilteredArticles.as_view()),
     path("top-stories/", TopStoriesView.as_view()),
-    path("trending/", TrendingArticles.as_view()),
+    # path("trending/", TrendingArticles.as_view()),  # Temporarily disabled
     path("filters/", ArticleFilters.as_view()),
     path("search-suggestions/", ArticleSearchSuggestions.as_view()),
     path("category-block/", CategoryBlockArticles.as_view()),
