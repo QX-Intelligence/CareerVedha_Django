@@ -16,18 +16,18 @@ jobs:
 
     steps:
 
-      # Checkout code
+      # 1. Checkout code
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Setup multi arch builder
+      # 2. Setup multi-arch builder
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      # AWS login
+      # 3. AWS login
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -35,12 +35,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Login ECR
+      # 4. Login ECR
       - name: Login ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Build multi arch image
-      - name: Build and Push Image
+      # 5. Build multi-arch image
+      - name: Build and Push Docker Image
         run: |
           IMAGE_TAG=${GITHUB_SHA}
 
@@ -55,7 +55,7 @@ jobs:
             -t $IMAGE_URI \
             --push .
 
-      # remove old images in ECR
+      # 6. Delete old ECR images (keep last 3)
       - name: Clean old ECR images
         run: |
           OLD_IMAGES=$(aws ecr describe-images \
@@ -69,13 +69,13 @@ jobs:
               --image-ids imageDigest=$DIGEST
           done
 
-      # deploy container on EC2
-      - name: Deploy via SSM
+      # 7. Deploy via SSM
+      - name: Deploy to EC2 via SSM
         run: |
           aws ssm send-command \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "deploy django container" \
+            --comment "Deploy django container" \
             --parameters 'commands=[
 
               "set -e",
@@ -84,27 +84,31 @@ jobs:
               "ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
               "IMAGE_URI=${{ env.IMAGE_URI }}",
 
-              "echo login ecr",
+              "echo Login to ECR",
               "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR",
 
               "cd ${{ env.APP_DIR }}",
 
-              "echo stop old container",
+              "echo Stop old containers",
               "docker-compose down --remove-orphans || true",
 
-              "echo clean docker",
+              "echo Remove old images",
+              "docker-compose down --rmi all --remove-orphans || true",
+
+              "echo Clean docker cache",
               "docker system prune -af || true",
 
-              "echo pull latest image",
-              "docker pull $IMAGE_URI",
-
-              "echo update env",
+              "echo Update env file",
               "sed -i \"/IMAGE_URI/d\" .env || true",
               "echo IMAGE_URI=$IMAGE_URI >> .env",
 
-              "echo start container",
-              "docker-compose up -d --force-recreate",
+              "echo Pull latest image",
+              "docker pull $IMAGE_URI",
 
+              "echo Start containers with latest image",
+              "docker-compose up -d --force-recreate --pull always",
+
+              "echo Running containers",
               "docker ps"
 
             ]'
