@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       # 1. Checkout code
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,10 +73,12 @@ jobs:
               --image-ids imageTag=$TAG || true
           done
 
-      # 7. Deploy via SSM (Debug added)
+      # 7. Deploy via SSM
       - name: Deploy to EC2 via SSM
         run: |
           set -e
+
+          IMAGE_URI="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}"
 
           COMMAND_ID=$(aws ssm send-command \
             --targets "Key=instanceIds,Values=${{ secrets.EC2_INSTANCE_ID }}" \
@@ -87,38 +88,23 @@ jobs:
             --output text \
             --parameters commands="[
               \"set -ex\",
-
               \"echo ===== DEBUG START =====\",
-
-              \"IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}\",
-
-              \"echo IMAGE_URI: \\$IMAGE_URI\",
-
+              \"echo IMAGE_URI: $IMAGE_URI\",
               \"aws --version\",
               \"docker --version\",
               \"docker ps\",
-
               \"echo Logging into ECR\",
               \"aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com\",
-
               \"cd ${{ env.APP_DIR }} || echo APP_DIR missing\",
-
               \"docker-compose down --remove-orphans || true\",
               \"docker-compose down --rmi all --remove-orphans || true\",
-
               \"docker system prune -af || true\",
-
               \"sed -i '/IMAGE_URI/d' .env || true\",
-              \"echo IMAGE_URI=\\$IMAGE_URI >> .env\",
-
+              \"echo IMAGE_URI=$IMAGE_URI >> .env\",
               \"cat .env\",
-
-              \"docker pull \\$IMAGE_URI\",
-
+              \"docker pull $IMAGE_URI\",
               \"docker-compose up -d --force-recreate --pull always\",
-
               \"docker ps\",
-
               \"echo ===== DEBUG END =====\"
             ]")
 
