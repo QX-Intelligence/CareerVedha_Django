@@ -55,18 +55,24 @@ jobs:
             -t $IMAGE_URI \
             --push .
 
-      # 6. Delete old ECR images (keep last 3)
+      # 6. Clean old ECR images
       - name: Clean old ECR images
         run: |
-          OLD_IMAGES=$(aws ecr describe-images \
+          IMAGES=$(aws ecr describe-images \
             --repository-name ${{ env.ECR_REPO }} \
-            --query 'sort_by(imageDetails,& imagePushedAt)[0:-3].imageDigest' \
+            --query 'sort_by(imageDetails,& imagePushedAt)[].imageTags[]' \
             --output text)
 
-          for DIGEST in $OLD_IMAGES; do
+          COUNT=0
+          for TAG in $IMAGES; do
+            COUNT=$((COUNT+1))
+            if [ $COUNT -le 3 ]; then
+              continue
+            fi
+
             aws ecr batch-delete-image \
               --repository-name ${{ env.ECR_REPO }} \
-              --image-ids imageDigest=$DIGEST
+              --image-ids imageTag=$TAG || true
           done
 
       # 7. Deploy via SSM
@@ -92,7 +98,7 @@ jobs:
               "echo Stop old containers",
               "docker-compose down --remove-orphans || true",
 
-              "echo Remove old images",
+              "echo Remove old compose images",
               "docker-compose down --rmi all --remove-orphans || true",
 
               "echo Clean docker cache",
