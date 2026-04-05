@@ -48,7 +48,7 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 6. Build & Push Image (Multi-Arch, No Cache)
+      # 6. Build & Push Image
       - name: Build and Push Docker Image
         run: |
           IMAGE_TAG=${GITHUB_SHA}
@@ -65,7 +65,7 @@ jobs:
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      # 7. Deploy via SSM (Fully Fixed)
+      # 7. Deploy via SSM (FIXED PROPERLY)
       - name: Deploy to EC2 via SSM
         run: |
           aws ssm send-command \
@@ -87,8 +87,8 @@ jobs:
               \"echo Stopping old containers\",
               \"docker-compose down --remove-orphans || true\",
 
-              \"echo Removing old images\",
-              \"docker images | grep django | awk '{print \\$3}' | xargs -r docker rmi -f || true\",
+              \"echo Removing old compose images (digest cache)\",
+              \"docker-compose down --rmi all --remove-orphans || true\",
 
               \"echo Cleaning system\",
               \"docker system prune -af || true\",
@@ -97,11 +97,11 @@ jobs:
               \"sed -i '/IMAGE_URI/d' .env || true\",
               \"echo IMAGE_URI=$IMAGE_URI >> .env\",
 
-              \"echo Pulling latest image\",
+              \"echo Pulling latest image explicitly\",
               \"docker pull $IMAGE_URI\",
 
-              \"echo Starting containers with fresh image\",
-              \"docker-compose up -d --force-recreate --no-build\",
+              \"echo Starting containers with forced fresh image\",
+              \"docker-compose up -d --force-recreate --pull always\",
 
               \"echo Running containers\",
               \"docker ps\"
