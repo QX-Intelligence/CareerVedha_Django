@@ -15,46 +15,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout
-      - name: Checkout code
+
+      # Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # 2. Debug
-      - name: Verify Commit & Files
-        run: |
-          echo "COMMIT:"
-          git log -1
-          echo "FILES:"
-          ls apps/common || true
-
-      # 3. Setup Multi-Arch
-      - name: Set up QEMU
+      # Setup multi arch builder
+      - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
+      - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 4. AWS Auth
-      - name: Configure AWS credentials
+      # AWS login
+      - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 5. Login to ECR
-      - name: Login to ECR
+      # Login ECR
+      - name: Login ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 6. Build & Push (Multi-Arch, No Cache)
-      - name: Build and Push Docker Image
+      # Build multi arch image
+      - name: Build and Push Image
         run: |
           IMAGE_TAG=${GITHUB_SHA}
-          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${IMAGE_TAG}
 
-          echo "Building image: $IMAGE_URI"
+          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:$IMAGE_TAG
+
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
@@ -62,50 +55,56 @@ jobs:
             -t $IMAGE_URI \
             --push .
 
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+      # remove old images in ECR
+      - name: Clean old ECR images
+        run: |
+          OLD_IMAGES=$(aws ecr describe-images \
+            --repository-name ${{ env.ECR_REPO }} \
+            --query 'sort_by(imageDetails,& imagePushedAt)[0:-3].imageDigest' \
+            --output text)
 
-      # 7. Deploy to EC2 via SSM (Force Fresh Image)
-      - name: Deploy to EC2 via SSM
+          for DIGEST in $OLD_IMAGES; do
+            aws ecr batch-delete-image \
+              --repository-name ${{ env.ECR_REPO }} \
+              --image-ids imageDigest=$DIGEST
+          done
+
+      # deploy container on EC2
+      - name: Deploy via SSM
         run: |
           aws ssm send-command \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy django service" \
-            --parameters commands="[
-              \"set -e\",
+            --comment "deploy django container" \
+            --parameters 'commands=[
 
-              \"AWS_REGION=${{ env.AWS_REGION }}\",
-              \"ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com\",
-              \"IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}\",
+              "set -e",
 
-              \"echo Logging into ECR\",
-              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR\",
+              "AWS_REGION=${{ env.AWS_REGION }}",
+              "ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
+              "IMAGE_URI=${{ env.IMAGE_URI }}",
 
-              \"cd ${{ env.APP_DIR }}\",
+              "echo login ecr",
+              "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR",
 
-              \"echo Stopping old containers\",
-              \"docker-compose down --remove-orphans || true\",
+              "cd ${{ env.APP_DIR }}",
 
-              \"echo Cleaning system\",
-              \"docker system prune -af || true\",
+              "echo stop old container",
+              "docker-compose down --remove-orphans || true",
 
-              \"echo Removing old images\",
-              \"docker rmi -f $(docker images -q $ECR/${{ env.ECR_REPO }}) || true\",
+              "echo clean docker",
+              "docker system prune -af || true",
 
-              \"echo Updating env\",
-              \"sed -i '/IMAGE_URI/d' .env || true\",
-              \"echo IMAGE_URI=$IMAGE_URI >> .env\",
+              "echo pull latest image",
+              "docker pull $IMAGE_URI",
 
-              \"echo Pulling latest image\",
-              \"docker pull $IMAGE_URI\",
+              "echo update env",
+              "sed -i \"/IMAGE_URI/d\" .env || true",
+              "echo IMAGE_URI=$IMAGE_URI >> .env",
 
-              \"echo Forcing compose pull\",
-              \"docker-compose pull || true\",
+              "echo start container",
+              "docker-compose up -d --force-recreate",
 
-              \"echo Starting containers with fresh image\",
-              \"docker-compose up -d --force-recreate --no-build\",
+              "docker ps"
 
-              \"echo Running containers\",
-              \"docker ps\"
-            ]"
+            ]'
