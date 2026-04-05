@@ -53,25 +53,12 @@ jobs:
             -t $IMAGE_URI \
             --push .
 
-      # 6. Clean old ECR images (keep last 3 images only)
-      - name: Clean old ECR images
+      # 6. Verify Image Exists in ECR
+      - name: Verify Image Exists in ECR
         run: |
-          IMAGES=$(aws ecr describe-images \
+          aws ecr describe-images \
             --repository-name ${{ env.ECR_REPO }} \
-            --query 'sort_by(imageDetails,& imagePushedAt)[].imageTags[]' \
-            --output text)
-
-          COUNT=0
-          for TAG in $IMAGES; do
-            COUNT=$((COUNT+1))
-            if [ $COUNT -le 3 ]; then
-              continue
-            fi
-
-            aws ecr batch-delete-image \
-              --repository-name ${{ env.ECR_REPO }} \
-              --image-ids imageTag=$TAG || true
-          done
+            --image-ids imageTag=${{ env.IMAGE_TAG }}
 
       # 7. Deploy via SSM
       - name: Deploy to EC2 via SSM
