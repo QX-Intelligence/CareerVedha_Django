@@ -39,7 +39,7 @@ jobs:
       - name: Login ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 5. Build and Push Image (Multi-Arch)
+      # 5. Build and Push Image
       - name: Build and Push Docker Image
         run: |
           IMAGE_TAG=${GITHUB_SHA}
@@ -74,7 +74,7 @@ jobs:
               --image-ids imageTag=$TAG || true
           done
 
-      # 7. Deploy via SSM (DEBUG ENABLED)
+      # 7. Deploy via SSM (debug enabled)
       - name: Deploy to EC2 via SSM
         run: |
           set -e
@@ -94,14 +94,13 @@ jobs:
               \"ECR=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com\",
               \"IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}\",
 
-              \"echo IMAGE_URI: $IMAGE_URI\",
-
+              \"echo IMAGE_URI: \\$IMAGE_URI\",
               \"aws --version\",
               \"docker --version\",
               \"docker ps\",
 
               \"echo Logging into ECR\",
-              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR\",
+              \"aws ecr get-login-password --region \\$AWS_REGION | docker login --username AWS --password-stdin \\$ECR\",
 
               \"cd ${{ env.APP_DIR }} || echo 'APP_DIR missing'\",
 
@@ -116,11 +115,11 @@ jobs:
 
               \"echo Updating env\",
               \"sed -i '/IMAGE_URI/d' .env || true\",
-              \"echo IMAGE_URI=$IMAGE_URI >> .env\",
+              \"echo IMAGE_URI=\\$IMAGE_URI >> .env\",
               \"cat .env\",
 
               \"echo Pulling image\",
-              \"docker pull $IMAGE_URI\",
+              \"docker pull \\$IMAGE_URI\",
 
               \"echo Starting containers\",
               \"docker-compose up -d --force-recreate --pull always\",
@@ -132,7 +131,7 @@ jobs:
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          echo "Waiting for command to execute..."
+          echo "Waiting for execution..."
 
           for i in {1..20}; do
             STATUS=$(aws ssm list-command-invocations \
@@ -143,7 +142,7 @@ jobs:
 
             echo "Current Status: $STATUS"
 
-            if [ "$STATUS" = "Success" ] || [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ]; then
+            if [ "$STATUS" = "Success" ] || [ "$STATUS" = "Failed" ]; then
               break
             fi
 
@@ -156,3 +155,18 @@ jobs:
             --command-id $COMMAND_ID \
             --instance-id ${{ secrets.EC2_INSTANCE_ID }} \
             --output text
+
+      # 8. Post-deploy health check
+      - name: Verify Deployment
+        run: |
+          echo "Waiting for service..."
+          sleep 15
+
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://www.careervedha.com/api/django/cms/articles/features/?feature_type=TOP&lang=en")
+
+          echo "HTTP Status: $STATUS"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "Deployment failed"
+            exit 1
+          fi
